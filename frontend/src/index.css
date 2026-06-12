@@ -1,0 +1,96 @@
+@import 'react-datepicker/dist/react-datepicker.css';
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0A0A0A;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0F1923;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1A3C5E;
+  border-radius: 3px;
+}
+
+/* The Dock City dark calendar */
+.thedockcity-calendar {
+  background-color: #111111 !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 12px !important;
+  font-family: 'Inter', sans-serif !important;
+  color: white !important;
+}
+
+.thedockcity-calendar .react-datepicker__header {
+  background-color: #1A1A1A !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.thedockcity-calendar .react-datepicker__current-month,
+.thedockcity-calendar .react-datepicker__day-name {
+  color: white !important;
+}
+
+.thedockcity-calendar .react-datepicker__day {
+  color: rgba(255,255,255,0.7) !important;
+  border-radius: 8px !important;
+}
+
+.thedockcity-calendar .react-datepicker__day:hover {
+  background-color: rgba(232,160,32,0.2) !important;
+  color: #E8A020 !important;
+}
+
+.thedockcity-calendar .react-datepicker__day--selected,
+.thedockcity-calendar .react-datepicker__day--keyboard-selected {
+  background-color: #E8A020 !important;
+  color: #0A0A0A !important;
+  font-weight: bold !important;
+}
+
+.thedockcity-calendar .react-datepicker__day--disabled {
+  color: rgba(255,255,255,0.15) !important;
+  cursor: not-allowed !important;
+}
+
+.thedockcity-calendar .react-datepicker__navigation-icon::before {
+  border-color: rgba(255,255,255,0.5) !important;
+}
+
+.thedockcity-calendar .react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
+  border-color: #E8A020 !important;
+}
+
+.thedockcity-calendar .react-datepicker__day--today {
+  border: 1px solid #E8A020 !important;
+  color: #E8A020 !important;
+}
+
+.thedockcity-calendar .react-datepicker__day--in-range {
+  background-color: rgba(232,160,32,0.15) !important;
+  color: white !important;
+}
+.thedockcity-calendar .react-datepicker__day--excluded {
+  color: rgba(255, 80, 80, 0.5) !important;
+  text-decoration: line-through !important;
+  cursor: not-allowed !important;
+  background-color: rgba(255, 80, 80, 0.05) !important;
+}

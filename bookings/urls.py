@@ -1,0 +1,28 @@
+from django.urls import path
+from .views import (
+    BookingCreateView,
+    BookingConfirmPaymentView,
+    HostBookingConfirmView,
+    HostBookingDeclineView,
+    GuestCheckInView,
+    GuestBookingListView,
+    HostBookingListView,
+    BookingAddressView,
+    BookingReceiptView,
+    AdminMarkPayoutView,
+    AdminBookingsView, 
+)
+
+urlpatterns = [
+    path('bookings/', BookingCreateView.as_view(), name='booking-create'),
+    path('bookings/webhook/payment/', BookingConfirmPaymentView.as_view(), name='booking-payment-webhook'),
+    path('bookings/guest/me/', GuestBookingListView.as_view(), name='guest-bookings'),
+    path('bookings/host/me/', HostBookingListView.as_view(), name='host-bookings'),
+    path('bookings/<uuid:pk>/confirm/', HostBookingConfirmView.as_view(), name='booking-confirm'),
+    path('bookings/<uuid:pk>/decline/', HostBookingDeclineView.as_view(), name='booking-decline'),
+    path('bookings/<uuid:pk>/checkin/', GuestCheckInView.as_view(), name='booking-checkin'),
+    path('bookings/<uuid:pk>/address/', BookingAddressView.as_view(), name='booking-address'),
+    path('bookings/<uuid:pk>/receipt/', BookingReceiptView.as_view(), name='booking-receipt'),
+    path('bookings/<uuid:pk>/mark-payout/', AdminMarkPayoutView.as_view(), name='admin-mark-payout'),
+    path('admin/bookings/', AdminBookingsView.as_view(), name='admin-bookings'),
+]
