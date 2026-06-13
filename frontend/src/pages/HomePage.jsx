@@ -83,7 +83,7 @@ export default function HomePage() {
           </p>
 
           {/* Search bar */}
-          <div className="bg-[#111111]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-3 flex flex-col md:flex-row gap-2 max-w-3xl overflow-visible">
+          <div className="bg-[#111111]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-3 flex flex-col md:flex-row gap-2 max-w-3xl overflow-visible relative">
 
             {/* Where to — neighborhood autocomplete */}
             <div className="flex-1 relative">
@@ -105,7 +105,7 @@ export default function HomePage() {
               </div>
               {/* Dropdown */}
               {showSuggestions && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-[#111111] border border-white/10 rounded-xl overflow-y-auto max-h-60 z-[999] shadow-xl">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-[#111111] border border-white/10 rounded-xl z-[999] shadow-xl overflow-y-auto max-h-60">
                   {filteredNeighborhoods.length > 0 ? (
                     filteredNeighborhoods.map(n => (
                       <button
