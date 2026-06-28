@@ -8,7 +8,7 @@ import api from '../api/axios'
 import toast from 'react-hot-toast'
 
 export default function Navbar() {
-  const { user, logout, loginWithGoogle } = useAuth()
+  const { user, logout, loginWithGoogle, userMode, switchToHost, switchToGuest } = useAuth()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
@@ -63,18 +63,6 @@ export default function Navbar() {
     handleGoogleLogin()
   }
 
-  const handleListProperty = () => {
-    if (!user) {
-      handleSignIn()
-      return
-    }
-    if (user.role === 'host') {
-      navigate('/host/listings/new')
-    } else {
-      navigate('/become-host')
-    }
-  }
-
   const handleLogout = () => {
     setProfileMenuOpen(false)
     logout()
@@ -85,6 +73,7 @@ export default function Navbar() {
   const handleSwitchToHost = () => {
     setProfileMenuOpen(false)
     if (user?.host_profile_status === 'approved') {
+      switchToHost()
       navigate('/dashboard/host')
     } else if (user?.host_profile_status === 'pending') {
       navigate('/dashboard/host')
@@ -95,6 +84,7 @@ export default function Navbar() {
 
   const handleSwitchToGuest = () => {
     setProfileMenuOpen(false)
+    switchToGuest()
     navigate('/dashboard/guest')
   }
 
@@ -134,8 +124,8 @@ export default function Navbar() {
         {/* Right side */}
         <div className="hidden md:flex items-center gap-4">
           {user && (
-            <div className="flex items-center gap-4">
-              {user.role === 'guest' && (
+            <>
+              {userMode === 'guest' && (
                 <Link to="/dashboard/guest" className="relative text-white/60 text-sm hover:text-gold transition-colors">
                   My Trips
                   {activeTripsCount > 0 && (
@@ -145,9 +135,9 @@ export default function Navbar() {
                   )}
                 </Link>
               )}
-              {user.role === 'host' && (
+              {userMode === 'host' && (
                 <Link to="/dashboard/host" className="text-white/60 text-sm hover:text-gold transition-colors">
-                  Dashboard
+                  Host Dashboard
                 </Link>
               )}
               {user.role === 'admin' && (
@@ -155,8 +145,7 @@ export default function Navbar() {
                   Admin
                 </Link>
               )}
-              
-            </div>
+            </>
           )}
 
           <button className="text-white/50 hover:text-white transition-colors">
@@ -182,37 +171,46 @@ export default function Navbar() {
                     <div className="px-4 py-3 border-b border-white/8">
                       <p className="text-white text-sm font-semibold truncate">{user.full_name}</p>
                       <p className="text-white/30 text-xs truncate">{user.email}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full mt-1 inline-block font-semibold ${
+                        userMode === 'host' ? 'bg-gold/10 text-gold' : 'bg-blue-500/10 text-blue-400'
+                      }`}>
+                        {userMode === 'host' ? '🏠 Host Mode' : '🧳 Guest Mode'}
+                      </span>
                     </div>
 
                     <div className="py-1">
-                      <button
-                        onClick={handleSwitchToGuest}
-                        className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
-                      >
-                        Switch to Guest Dashboard
-                      </button>
-                      <button
-                        onClick={handleSwitchToHost}
-                        className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
-                      >
-                        {user.host_profile_status === 'approved'
-                          ? 'Switch to Host Dashboard'
-                          : user.host_profile_status === 'pending'
-                            ? 'View Application Status'
-                            : 'Become a Host'}
-                      </button>
+                      {userMode === 'host' && (
+                        <button
+                          onClick={handleSwitchToGuest}
+                          className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
+                        >
+                          🧳 Switch to Guest
+                        </button>
+                      )}
+                      {userMode === 'guest' && (
+                        <button
+                          onClick={handleSwitchToHost}
+                          className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
+                        >
+                          {user.host_profile_status === 'approved'
+                            ? '🏠 Switch to Host'
+                            : user.host_profile_status === 'pending'
+                              ? '🏠 View Application Status'
+                              : '🏠 Become a Host'}
+                        </button>
+                      )}
                       <button
                         onClick={() => { setProfileMenuOpen(false); navigate('/properties-for-sale/list') }}
                         className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
                       >
-                        List Property for Sale
+                        🏷️ List Property for Sale
                       </button>
                       {user.role === 'admin' && (
                         <button
                           onClick={() => { setProfileMenuOpen(false); navigate('/admin-panel') }}
                           className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
                         >
-                          Admin Panel
+                          🛠️ Admin Panel
                         </button>
                       )}
                     </div>
@@ -238,12 +236,14 @@ export default function Navbar() {
             </button>
           )}
 
-          <button
-            onClick={handleListProperty}
-            className="bg-gold text-dark font-bold text-sm px-4 py-2 rounded-lg hover:bg-gold/90 transition-colors"
-          >
-            List Your Property
-          </button>
+          {userMode === 'host' && user?.host_profile_status === 'approved' && (
+            <button
+              onClick={() => navigate('/host/listings/new')}
+              className="bg-gold text-dark font-bold px-4 py-2 rounded-lg text-sm hover:bg-gold/90 transition-colors"
+            >
+              + New Listing
+            </button>
+          )}
         </div>
 
         {/* Mobile menu button */}
@@ -269,16 +269,25 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* Role-based links — same as desktop nav */}
+          {/* Profile actions — mobile */}
           {user && (
             <div className="pt-2 border-t border-white/10 space-y-3">
-              {user.role === 'guest' && (
+              <div className="flex items-center gap-2">
+                <p className="text-white/30 text-xs">{user.full_name}</p>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                  userMode === 'host' ? 'bg-gold/10 text-gold' : 'bg-blue-500/10 text-blue-400'
+                }`}>
+                  {userMode === 'host' ? '🏠 Host' : '🧳 Guest'}
+                </span>
+              </div>
+
+              {userMode === 'guest' && (
                 <Link
                   to="/dashboard/guest"
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
                 >
-                  My Trips
+                  🧳 My Trips
                   {activeTripsCount > 0 && (
                     <span className="bg-gold text-dark text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                       {activeTripsCount}
@@ -286,59 +295,45 @@ export default function Navbar() {
                   )}
                 </Link>
               )}
-              {user.role === 'host' && (
+
+              {userMode === 'host' && (
                 <Link
                   to="/dashboard/host"
                   onClick={() => setMobileOpen(false)}
-                  className="block text-white/70 text-sm hover:text-gold transition-colors"
-                >
-                  Dashboard
-                </Link>
-              )}
-              {user.role === 'admin' && (
-                <Link
-                  to="/admin-panel"
-                  onClick={() => setMobileOpen(false)}
-                  className="block text-white/70 text-sm hover:text-gold transition-colors"
-                >
-                  Admin
-                </Link>
-              )}
-            </div>
-          )}
-
-          {/* Profile actions — mobile */}
-          {user && (
-            <div className="pt-2 border-t border-white/10 space-y-3">
-              <p className="text-white/30 text-xs">{user.full_name} · {user.email}</p>
-
-              {/* Switch dashboard */}
-              {user.host_profile_status === 'approved' && (
-                <button
-                  onClick={() => { setMobileOpen(false); navigate('/dashboard/host') }}
                   className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
                 >
                   🏠 Host Dashboard
-                </button>
+                </Link>
               )}
-              {user.host_profile_status === 'pending' && (
+
+              {userMode === 'host' && (
                 <button
-                  onClick={() => { setMobileOpen(false); navigate('/dashboard/host') }}
+                  onClick={() => {
+                    setMobileOpen(false)
+                    handleSwitchToGuest()
+                  }}
                   className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
                 >
-                  🏠 View Application Status
-                </button>
-              )}
-              {!user.host_profile_status && (
-                <button
-                  onClick={() => { setMobileOpen(false); navigate('/become-host') }}
-                  className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
-                >
-                  🏠 Become a Host
+                  🧳 Switch to Guest
                 </button>
               )}
 
-              {/* List property for sale */}
+              {userMode === 'guest' && (
+                <button
+                  onClick={() => {
+                    setMobileOpen(false)
+                    handleSwitchToHost()
+                  }}
+                  className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  {user.host_profile_status === 'approved'
+                    ? '🏠 Switch to Host'
+                    : user.host_profile_status === 'pending'
+                      ? '🏠 View Application Status'
+                      : '🏠 Become a Host'}
+                </button>
+              )}
+
               <button
                 onClick={() => { setMobileOpen(false); navigate('/properties-for-sale/list') }}
                 className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
@@ -361,7 +356,6 @@ export default function Navbar() {
           <div className="pt-2 border-t border-white/10 space-y-3">
             {user ? (
               <>
-                <p className="text-white/40 text-xs">{user.full_name}</p>
                 <button onClick={handleLogout} className="text-sm text-red-400">Logout</button>
               </>
             ) : (
@@ -372,12 +366,14 @@ export default function Navbar() {
                 Sign in with Google
               </button>
             )}
-            <button
-              onClick={handleListProperty}
-              className="w-full bg-gold text-dark font-bold text-sm px-4 py-2 rounded-lg"
-            >
-              List Your Property
-            </button>
+            {userMode === 'host' && user?.host_profile_status === 'approved' && (
+              <button
+                onClick={() => navigate('/host/listings/new')}
+                className="w-full bg-gold text-dark font-bold text-sm px-4 py-2 rounded-lg"
+              >
+                + New Listing
+              </button>
+            )}
           </div>
         </div>
       )}

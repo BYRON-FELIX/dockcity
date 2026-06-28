@@ -5,8 +5,21 @@ const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [userMode, setUserMode] = useState(() => {
+    return localStorage.getItem('dock_city_mode') || 'guest'
+  })
   const [loading, setLoading] = useState(true)
   const [needsProfile, setNeedsProfile] = useState(false)
+
+  const switchToHost = () => {
+    localStorage.setItem('dock_city_mode', 'host')
+    setUserMode('host')
+  }
+
+  const switchToGuest = () => {
+    localStorage.setItem('dock_city_mode', 'guest')
+    setUserMode('guest')
+  }
 
   const checkNeedsProfile = (userData) => {
     
@@ -55,13 +68,27 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
-    localStorage.clear()
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('dock_city_mode')
     setUser(null)
+    setUserMode('guest')
     setNeedsProfile(false)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, needsProfile, loginWithGoogle, updateProfile, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      setUser,
+      loading,
+      needsProfile,
+      loginWithGoogle,
+      logout,
+      updateProfile,
+      userMode,
+      switchToHost,
+      switchToGuest,
+    }}>
       {children}
     </AuthContext.Provider>
   )
