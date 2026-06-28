@@ -307,6 +307,57 @@ export default function Navbar() {
             </div>
           )}
 
+          {/* Profile actions — mobile */}
+          {user && (
+            <div className="pt-2 border-t border-white/10 space-y-3">
+              <p className="text-white/30 text-xs">{user.full_name} · {user.email}</p>
+
+              {/* Switch dashboard */}
+              {user.host_profile_status === 'approved' && (
+                <button
+                  onClick={() => { setMobileOpen(false); navigate('/dashboard/host') }}
+                  className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  🏠 Host Dashboard
+                </button>
+              )}
+              {user.host_profile_status === 'pending' && (
+                <button
+                  onClick={() => { setMobileOpen(false); navigate('/dashboard/host') }}
+                  className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  🏠 View Application Status
+                </button>
+              )}
+              {!user.host_profile_status && (
+                <button
+                  onClick={() => { setMobileOpen(false); navigate('/become-host') }}
+                  className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  🏠 Become a Host
+                </button>
+              )}
+
+              {/* List property for sale */}
+              <button
+                onClick={() => { setMobileOpen(false); navigate('/properties-for-sale/list') }}
+                className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
+              >
+                🏷️ List Property for Sale
+              </button>
+
+              {/* Admin panel */}
+              {user.role === 'admin' && (
+                <button
+                  onClick={() => { setMobileOpen(false); navigate('/admin-panel') }}
+                  className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  🛠️ Admin Panel
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="pt-2 border-t border-white/10 space-y-3">
             {user ? (
               <>

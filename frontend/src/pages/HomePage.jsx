@@ -58,19 +58,19 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#0A0A0A] font-sans">
       <Navbar />
 
-      {/* ── Hero ── */}
-      <section className="relative min-h-screen flex items-center bg-[#0A0A0A] overflow-hidden">
-        {/* Image — right side only */}
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center overflow-hidden">
+        {/* Background image — full screen on mobile, right side on desktop */}
         <div
-          className="absolute right-0 top-0 bottom-0 w-1/2 bg-cover bg-center"
+          className="absolute inset-0 md:left-[45%] bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: "url('https://res.cloudinary.com/dyqawsk0m/image/upload/v1778880529/ChatGPT_Image_May_16_2026_12_21_57_AM_2_lotbyi.png')" }}
         />
 
-        <div className="absolute inset-0 bg-dark/5" />
-        {/* Fade from left dark to image */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A] via-[#0A0A0A]/20 to-transparent" />
+        {/* Overlay — stronger on mobile so text is readable over full bg image */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A] via-[#0A0A0A]/90 to-[#0A0A0A]/60 md:from-[#0A0A0A] md:via-[#0A0A0A]/80 md:to-transparent" />
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 pt-28">
+        {/* Content */}
+        <div className="relative z-10 max-w-6xl mx-auto px-6 py-32 w-full">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-6">
             <ShieldCheck size={13} className="text-gold" />
