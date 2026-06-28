@@ -36,6 +36,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone_number = models.CharField(max_length=20, null=True, blank=True)
     full_name = models.CharField(max_length=255)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='guest')
+    guest_average_rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+    guest_rating_count = models.IntegerField(default=0)
 
     # Identity document — one time upload, ID or Passport
     is_active = models.BooleanField(default=True)

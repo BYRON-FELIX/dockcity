@@ -43,6 +43,8 @@ def release_escrow(booking_id):
     # TODO: WhatsApp notification to host — payout released
     from core.sms import notify_host_payout_released
     notify_host_payout_released(booking)
+    from core.email import notify_booking_completed
+    notify_booking_completed(booking)
 
     return f'Escrow released for booking {booking_id}. Host payout: KES {booking.host_payout_kes}'
 

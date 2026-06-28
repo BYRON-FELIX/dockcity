@@ -1,7 +1,19 @@
 import axios from 'axios'
 
+const DEFAULT_API_URL = 'http://localhost:8000/api'
+const rawApiUrl = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim()
+const cleanedApiUrl = rawApiUrl.replace(/\/+$/, '')
+const API_BASE_URL = cleanedApiUrl.endsWith('/api') ? cleanedApiUrl : `${cleanedApiUrl}/api`
+
+if (!import.meta.env.VITE_API_URL) {
+  // Make local development resilient when env vars are not set.
+  console.warn(`VITE_API_URL is not set. Falling back to ${DEFAULT_API_URL}`)
+} else if (!cleanedApiUrl.endsWith('/api')) {
+  console.warn(`VITE_API_URL should include /api. Using normalized value: ${API_BASE_URL}`)
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: API_BASE_URL,
 })
 
 // Attach JWT token to every request
@@ -24,7 +36,7 @@ api.interceptors.response.use(
       if (refresh) {
         try {
           const res = await axios.post(
-            `${import.meta.env.VITE_API_URL}/auth/token/refresh/`,
+            `${API_BASE_URL}/auth/token/refresh/`,
             { refresh }
           )
           localStorage.setItem('access_token', res.data.access)

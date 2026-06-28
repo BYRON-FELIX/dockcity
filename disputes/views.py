@@ -15,13 +15,22 @@ class RaiseDisputeView(APIView):
     """Guest raises a dispute within 24hrs of check-in confirmation."""
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def post(self, request, pk):
         serializer = DisputeCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        booking = get_object_or_404(Booking, pk=data['booking_id'], guest=request.user)
+        booking_id = data.get('booking_id') or pk
+
+        # If both path and payload booking IDs are provided, enforce consistency.
+        if data.get('booking_id') and str(data['booking_id']) != str(pk):
+            return Response(
+                {'error': 'Booking ID mismatch between URL and payload.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking = get_object_or_404(Booking, pk=booking_id, guest=request.user)
 
         # Must be checked in
         if booking.status != 'checked_in':
@@ -60,6 +69,8 @@ class RaiseDisputeView(APIView):
         # TODO: WhatsApp notification to host + admin
         from core.sms import notify_dispute_raised
         notify_dispute_raised(booking)
+        from core.email import notify_dispute_raised as notify_dispute_raised_email
+        notify_dispute_raised_email(booking, dispute)
 
         return Response(DisputeSerializer(dispute).data, status=status.HTTP_201_CREATED)
 

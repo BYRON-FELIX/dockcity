@@ -46,7 +46,8 @@ export default function HostDashboard() {
   const [blockLoading, setBlockLoading] = useState(false)
   const [reviewModal, setReviewModal] = useState(null)
   const [review, setReview] = useState({ rating: 5, comment: '' })
-
+  const [hostReviews, setHostReviews] = useState([])
+  const [replyDrafts, setReplyDrafts] = useState({})
   useEffect(() => {
     api.get('/auth/me/').then(res => {
       updateProfile(res.data)
@@ -69,6 +70,14 @@ export default function HostDashboard() {
     }).catch(() => toast.error('Failed to load dashboard.'))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      api.get('/reviews/host/me/')
+        .then(res => setHostReviews(res.data))
+        .catch(() => toast.error('Failed to load reviews.'))
+    }
+  }, [activeTab])
 
   // Countdown timer for awaiting_host bookings
   useEffect(() => {
@@ -146,6 +155,21 @@ export default function HostDashboard() {
     setReview({ rating: 5, comment: '' })
   } catch (err) {
     toast.error(err.response?.data?.error || 'Failed to submit review.')
+  }
+}
+
+  const handleSubmitReply = async (reviewId) => {
+  const reply = replyDrafts[reviewId]
+  if (!reply?.trim()) return toast.error('Write a reply first.')
+  try {
+    await api.post(`/reviews/${reviewId}/reply/`, { reply })
+    toast.success('Reply posted!')
+    setHostReviews(prev => prev.map(r =>
+      r.id === reviewId ? { ...r, host_reply: reply } : r
+    ))
+    setReplyDrafts(prev => ({ ...prev, [reviewId]: '' }))
+  } catch (err) {
+    toast.error(err.response?.data?.error || 'Failed to post reply.')
   }
 }
 
@@ -236,7 +260,7 @@ export default function HostDashboard() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-[#111111] rounded-xl p-1 mb-6 border border-white/8 w-fit">
-          {['bookings', 'listings'].map(tab => (
+          {['bookings', 'listings', 'reviews'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -273,7 +297,17 @@ export default function HostDashboard() {
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-4 text-sm text-white/40">
-                          <span>Guest: <span className="text-white/70">{booking.guest_name}</span></span>
+                          <span className="flex items-center gap-1">
+                            Guest: <span className="text-white/70">{booking.guest_name}</span>
+                            {booking.guest_rating_count > 0 ? (
+                              <span className="flex items-center gap-0.5 text-white/50">
+                                <Star size={11} className="text-gold" fill="currentColor" />
+                                {booking.guest_average_rating} ({booking.guest_rating_count})
+                              </span>
+                            ) : (
+                              <span className="text-white/20 text-xs">(new guest)</span>
+                            )}
+                          </span>
                           <span>{booking.check_in_date} → {booking.check_out_date}</span>
                           <span className="text-gold font-semibold">KES {booking.host_payout_kes?.toLocaleString()}</span>
                           <span className="text-white/30">Ref: {booking.reference_code}</span>
@@ -421,7 +455,59 @@ export default function HostDashboard() {
           </div>
       
         )}
-      
+
+        {/* Reviews tab */}
+        {activeTab === 'reviews' && (
+          <div className="space-y-4">
+            {hostReviews.length === 0 ? (
+              <div className="text-center py-24 text-white/30">
+                <Star size={40} className="mx-auto mb-3 opacity-30" />
+                <p>No reviews yet</p>
+              </div>
+            ) : (
+              hostReviews.map(review => (
+                <div key={review.id} className="bg-[#111111] border border-white/8 rounded-xl p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    {[1,2,3,4,5].map(star => (
+                      <Star
+                        key={star}
+                        size={14}
+                        className={star <= review.rating ? 'text-gold' : 'text-white/20'}
+                        fill={star <= review.rating ? 'currentColor' : 'none'}
+                      />
+                    ))}
+                    <span className="text-white/30 text-xs ml-2">by {review.reviewer_name}</span>
+                  </div>
+                  <p className="text-white/70 text-sm mb-3">{review.comment}</p>
+
+                  {review.host_reply ? (
+                    <div className="pl-3 border-l-2 border-gold/30">
+                      <p className="text-gold/70 text-xs mb-0.5">Your reply</p>
+                      <p className="text-white/60 text-sm">{review.host_reply}</p>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        type="text"
+                        value={replyDrafts[review.id] || ''}
+                        onChange={e => setReplyDrafts(prev => ({ ...prev, [review.id]: e.target.value }))}
+                        placeholder="Write a public reply..."
+                        className="flex-1 bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold"
+                      />
+                      <button
+                        onClick={() => handleSubmitReply(review.id)}
+                        className="bg-gold text-dark text-xs font-bold px-4 py-2 rounded-lg hover:bg-gold/90 transition-colors shrink-0"
+                      >
+                        Reply
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
       {/* Block Dates Modal */}
        {blockModal && (
          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">

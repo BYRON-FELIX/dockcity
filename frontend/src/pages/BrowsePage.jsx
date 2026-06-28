@@ -17,6 +17,7 @@ export default function BrowsePage() {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [hourlyOnly, setHourlyOnly] = useState(searchParams.get('hourly') === 'true')
 
   const [filters, setFilters] = useState({
     neighborhood: searchParams.get('neighborhood') || '',
@@ -33,6 +34,7 @@ export default function BrowsePage() {
       Object.entries(filters).forEach(([key, val]) => {
         if (val) params.set(key, val)
       })
+      if (hourlyOnly) params.set('hourly', 'true')
       const res = await api.get(`/listings/?${params.toString()}`)
       setListings(res.data)
     } catch {
@@ -43,6 +45,7 @@ export default function BrowsePage() {
   }
 
   useEffect(() => { fetchListings() }, [])
+  useEffect(() => { fetchListings() }, [hourlyOnly])
 
   const handleFilter = () => {
     fetchListings()
@@ -51,6 +54,7 @@ export default function BrowsePage() {
 
   const clearFilters = () => {
     setFilters({ neighborhood: '', min_price: '', max_price: '', bedrooms: '', max_guests: '' })
+    setHourlyOnly(false)
   }
 
   return (
@@ -66,13 +70,25 @@ export default function BrowsePage() {
             </h1>
             <p className="text-white/40 text-sm mt-1">{listings.length} properties found</p>
           </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 border border-white/20 px-4 py-2 rounded-lg text-sm text-white/70 hover:border-gold hover:text-gold transition-colors"
-          >
-            <SlidersHorizontal size={16} />
-            Filters
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setHourlyOnly(!hourlyOnly)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                hourlyOnly
+                  ? 'bg-gold text-dark border-gold font-bold'
+                  : 'border-white/10 text-white/60 hover:border-gold/40'
+              }`}
+            >
+              Hourly Stays
+            </button>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 border border-white/20 px-4 py-2 rounded-lg text-sm text-white/70 hover:border-gold hover:text-gold transition-colors"
+            >
+              <SlidersHorizontal size={16} />
+              Filters
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-6">

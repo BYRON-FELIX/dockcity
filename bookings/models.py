@@ -23,6 +23,10 @@ class Booking(models.Model):
 
     check_in_date = models.DateField()
     check_out_date = models.DateField()
+    check_in_time = models.TimeField(null=True, blank=True)
+    check_out_time = models.TimeField(null=True, blank=True)
+    is_hourly_booking = models.BooleanField(default=False)
+    hourly_duration = models.IntegerField(null=True, blank=True)
     total_nights = models.PositiveIntegerField()
     total_amount_kes = models.PositiveIntegerField()
     platform_fee_kes = models.PositiveIntegerField()
@@ -36,8 +40,15 @@ class Booking(models.Model):
     escrow_release_at = models.DateTimeField(null=True, blank=True)
     payout_sent_at = models.DateTimeField(null=True, blank=True)
     cancellation_reason = models.TextField(null=True, blank=True)
+    REFUND_STATUS_CHOICES = [
+        ('not_applicable', 'Not Applicable'),
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+    ]
+    refund_status = models.CharField(max_length=20, choices=REFUND_STATUS_CHOICES, default='not_applicable')
 
     created_at = models.DateTimeField(auto_now_add=True)
+    payment_expires_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

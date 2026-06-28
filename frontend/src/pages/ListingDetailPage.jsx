@@ -26,6 +26,11 @@ export default function ListingDetailPage() {
   const [booking, setBooking] = useState({
     check_in_date: '', check_out_date: '', guests: 1
   })
+  const [bookingMode, setBookingMode] = useState('nightly')
+  const [hourlyDate, setHourlyDate] = useState(null)
+  const [hourlyDuration, setHourlyDuration] = useState(null)
+  const [checkInTime, setCheckInTime] = useState('')
+  const [checkOutTime, setCheckOutTime] = useState('')
 
   const [bookingLoading, setBookingLoading] = useState(false)
   const [unavailableDates, setUnavailableDates] = useState([])
@@ -63,16 +68,35 @@ export default function ListingDetailPage() {
 }
 
 const nights = totalNights()
-const subtotal = nights * (listing?.price_per_night_kes || 0)
-const platformFee = Math.round(subtotal * 0.10)
-const total = subtotal + platformFee
+const getApplicableDiscount = (stayNights) => {
+  if (!listing?.long_stay_discounts?.length) return 0
+  const qualifying = listing.long_stay_discounts
+    .filter(t => stayNights >= Number(t.min_nights))
+    .map(t => Number(t.discount_percent))
+  return qualifying.length ? Math.max(...qualifying) : 0
+}
+
+const discountPercent = bookingMode === 'nightly' ? getApplicableDiscount(nights) : 0
+const baseTotal = (listing?.price_per_night_kes || 0) * nights
+const discountAmount = Math.floor(baseTotal * discountPercent / 100)
+const finalTotal = baseTotal - discountAmount
+const hourlyDisplayAmount = bookingMode === 'hourly'
+  ? (listing?.hourly_pricing_type === 'flat_rate'
+      ? ((listing?.hourly_rate_kes || 0) * (hourlyDuration || 0))
+      : (listing?.hourly_blocks?.find(b => Number(b.hours) === Number(hourlyDuration))?.price_kes || 0))
+  : 0
 
 const handleBooking = async () => {
   if (!user) return toast.error('Please sign in to book.')
-  if (!booking.check_in_date) return toast.error('Please select a check-in date.')
-  if (!booking.check_out_date) return toast.error('Please select a check-out date.')
-  if (nights < 1) return toast.error('Check-out must be after check-in.')
-  if (booking.guests < 1) return toast.error('At least 1 guest required.')
+  if (bookingMode === 'hourly') {
+    if (!hourlyDate) return toast.error('Please select a date.')
+    if (!hourlyDuration) return toast.error('Please select a duration.')
+  } else {
+    if (!booking.check_in_date) return toast.error('Please select a check-in date.')
+    if (!booking.check_out_date) return toast.error('Please select a check-out date.')
+    if (nights < 1) return toast.error('Check-out must be after check-in.')
+    if (booking.guests < 1) return toast.error('At least 1 guest required.')
+  }
   // Show phone modal
   setPayPhone(user?.phone_number || '')
   setPayModal(true)
@@ -87,13 +111,27 @@ const handleBooking = async () => {
 
   setPayLoading(true)
   try {
-    const res = await api.post('/bookings/', {
-      listing_id: id,
-      check_in_date: booking.check_in_date?.toISOString().split('T')[0],
-      check_out_date: booking.check_out_date?.toISOString().split('T')[0],
-      guests: booking.guests,
-      phone_number: phone,
-    })
+    const bookingPayload = bookingMode === 'hourly'
+      ? {
+          listing_id: id,
+          check_in_date: hourlyDate?.toISOString().split('T')[0],
+          check_out_date: hourlyDate?.toISOString().split('T')[0],
+          is_hourly_booking: true,
+          hourly_duration: hourlyDuration,
+          guests: booking.guests,
+          phone_number: phone,
+        }
+      : {
+          listing_id: id,
+          check_in_date: booking.check_in_date?.toISOString().split('T')[0],
+          check_out_date: booking.check_out_date?.toISOString().split('T')[0],
+          check_in_time: checkInTime,
+          check_out_time: checkOutTime,
+          guests: booking.guests,
+          phone_number: phone,
+        }
+
+    const res = await api.post('/bookings/', bookingPayload)
     setPayModal(false)
     toast.success('STK Push sent! Check your phone and enter your M-Pesa PIN.')
     navigate('/dashboard/guest')
@@ -196,11 +234,18 @@ const handleBooking = async () => {
               </div>
               <div>
                 <p className="text-white font-semibold">Verified Host</p>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-3 mt-1">
                     <span className="text-xs bg-gold/10 text-gold border border-gold/20 px-2 py-0.5 rounded-full flex items-center gap-1">
                     <ShieldCheck size={10} />
                     The Dock City Verified
                   </span>
+                  {listing.host_average_rating && (
+                    <div className="flex items-center gap-1 text-xs text-white/60">
+                      <Star size={12} className="text-gold" fill="currentColor" />
+                      <span className="text-white font-semibold">{listing.host_average_rating}</span>
+                      <span className="text-white/30">({listing.host_total_reviews} review{listing.host_total_reviews !== 1 ? 's' : ''})</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -295,12 +340,43 @@ const handleBooking = async () => {
           <div className="lg:col-span-1">
             <div className="sticky top-24 bg-[#111111] border border-white/8 rounded-2xl p-6">
               <div className="mb-4">
-                <span className="text-gold text-2xl font-bold">
-                  KES {listing.price_per_night_kes?.toLocaleString()}
-                </span>
-                <span className="text-white/40 text-sm"> / night</span>
+                {bookingMode === 'hourly' ? (
+                  <>
+                    <span className="text-gold text-2xl font-bold">
+                      KES {listing.hourly_rate_kes?.toLocaleString() || '0'}
+                    </span>
+                    <span className="text-white/40 text-sm"> / hour</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-gold text-2xl font-bold">
+                      KES {listing.price_per_night_kes?.toLocaleString()}
+                    </span>
+                    <span className="text-white/40 text-sm"> / night</span>
+                  </>
+                )}
               </div>
 
+          {listing.is_hourly_available && (
+            <div className="flex gap-2 mb-4 bg-[#0A0A0A] rounded-xl p-1 border border-white/8">
+              {[
+                { value: 'nightly', label: 'Book by Night' },
+                { value: 'hourly', label: 'Book by Hour' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setBookingMode(opt.value)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    bookingMode === opt.value ? 'bg-gold text-dark font-bold' : 'text-white/50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {bookingMode === 'nightly' && (
           <div className="space-y-3 mb-4">
             <div>
               <label className="text-white/50 text-xs mb-1 block">Check-in</label>
@@ -379,6 +455,57 @@ const handleBooking = async () => {
                 }}
               />
             </div>
+            {(listing.earliest_checkin_time || listing.earliest_checkout_time) && (
+              <div className="bg-[#0A0A0A] border border-white/8 rounded-xl p-3 mt-3 space-y-2">
+                <p className="text-white/40 text-xs font-semibold uppercase tracking-wider">Availability Window</p>
+                {listing.earliest_checkin_time && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-white/50">Check-in</span>
+                    <span className="text-white/80">
+                      {listing.earliest_checkin_time?.slice(0,5)} - {listing.latest_checkin_time?.slice(0,5)}
+                    </span>
+                  </div>
+                )}
+                {listing.earliest_checkout_time && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-white/50">Check-out</span>
+                    <span className="text-white/80">
+                      {listing.earliest_checkout_time?.slice(0,5)} - {listing.latest_checkout_time?.slice(0,5)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="text-white/50 text-xs mb-1 block">
+                  Check-in time <span className="text-white/30">(optional)</span>
+                </label>
+                <input
+                  type="time"
+                  value={checkInTime}
+                  onChange={e => setCheckInTime(e.target.value)}
+                  min={listing.earliest_checkin_time?.slice(0,5)}
+                  max={listing.latest_checkin_time?.slice(0,5)}
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label className="text-white/50 text-xs mb-1 block">
+                  Check-out time <span className="text-white/30">(optional)</span>
+                </label>
+                <input
+                  type="time"
+                  value={checkOutTime}
+                  onChange={e => setCheckOutTime(e.target.value)}
+                  min={listing.earliest_checkout_time?.slice(0,5)}
+                  max={listing.latest_checkout_time?.slice(0,5)}
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="text-white/50 text-xs mb-1 block">Guests</label>
               <select
@@ -391,18 +518,110 @@ const handleBooking = async () => {
                 ))}
               </select>
             </div>
+
+            {listing.long_stay_discounts?.length > 0 && (
+              <div className="bg-gold/5 border border-gold/20 rounded-lg p-3 mt-2">
+                <p className="text-gold text-xs font-semibold mb-1">Long-stay discounts available</p>
+                {[...(listing.long_stay_discounts || [])]
+                  .sort((a, b) => Number(a.min_nights) - Number(b.min_nights))
+                  .map((tier, i) => (
+                    <p key={i} className="text-white/50 text-xs">
+                      {tier.min_nights}+ nights: <span className="text-gold">{tier.discount_percent}% off</span>
+                    </p>
+                  ))}
+              </div>
+            )}
           </div>
+          )}
+
+          {bookingMode === 'hourly' && (
+            <div className="space-y-4 mb-4">
+              <div>
+                <label className="text-white/50 text-xs mb-1 block">Date</label>
+                <DatePicker
+                  selected={hourlyDate}
+                  onChange={date => setHourlyDate(date)}
+                  minDate={new Date()}
+                  excludeDates={unavailableDates}
+                  placeholderText="Select a date"
+                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-gold"
+                />
+              </div>
+
+              {listing.hourly_pricing_type === 'flat_rate' && (
+                <div>
+                  <label className="text-white/50 text-xs mb-1 block">
+                    Duration (min {listing.hourly_min_hours} hours)
+                  </label>
+                  <input
+                    type="number"
+                    min={listing.hourly_min_hours}
+                    value={hourlyDuration || ''}
+                    onChange={e => setHourlyDuration(parseInt(e.target.value) || null)}
+                    placeholder={`e.g. ${listing.hourly_min_hours}`}
+                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-gold"
+                  />
+                  {hourlyDuration && (
+                    <p className="text-gold text-sm font-semibold mt-2">
+                      KES {((listing.hourly_rate_kes || 0) * hourlyDuration).toLocaleString()} total
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {listing.hourly_pricing_type === 'fixed_blocks' && (
+                <div>
+                  <label className="text-white/50 text-xs mb-2 block">Choose a time block</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {listing.hourly_blocks?.map((block, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setHourlyDuration(Number(block.hours))}
+                        className={`p-3 rounded-lg border text-left transition-colors ${
+                          Number(hourlyDuration) === Number(block.hours)
+                            ? 'bg-gold/10 border-gold text-gold'
+                            : 'border-white/10 text-white/60 hover:border-gold/40'
+                        }`}
+                      >
+                        <p className="font-semibold text-sm">{block.hours} hours</p>
+                        <p className="text-xs mt-0.5">KES {block.price_kes?.toLocaleString()}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
              {/* Fee breakdown — platform cut hidden from users */}
-             {nights > 0 && (
+             {bookingMode === 'nightly' && nights > 0 && (
                 <div className="border-t border-white/8 pt-4 mb-4 space-y-2 text-sm">
                   <div className="flex justify-between text-white/50">
                     <span>KES {listing.price_per_night_kes?.toLocaleString()} × {nights} night{nights > 1 ? 's' : ''}</span>
-                    <span>KES {subtotal.toLocaleString()}</span>
+                    <span>KES {baseTotal.toLocaleString()}</span>
+                  </div>
+                  {discountPercent > 0 && (
+                    <div className="flex justify-between text-sm text-green-400">
+                      <span>{discountPercent}% long-stay discount</span>
+                      <span>- KES {discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-white font-semibold border-t border-white/8 pt-2">
+                    <span>Total</span>
+                    <span className="text-gold">KES {finalTotal.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+
+              {bookingMode === 'hourly' && hourlyDisplayAmount > 0 && (
+                <div className="border-t border-white/8 pt-4 mb-4 space-y-2 text-sm">
+                  <div className="flex justify-between text-white/50">
+                    <span>Hourly booking total</span>
+                    <span>KES {hourlyDisplayAmount.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-white font-semibold border-t border-white/8 pt-2">
                     <span>Total</span>
-                    <span className="text-gold">KES {subtotal.toLocaleString()}</span>
+                    <span className="text-gold">KES {hourlyDisplayAmount.toLocaleString()}</span>
                   </div>
                 </div>
               )}
@@ -437,17 +656,26 @@ const handleBooking = async () => {
                       <div className="flex justify-between text-sm">
                         <span className="text-white/50">{listing?.title}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white/50">
-                          {booking.check_in_date?.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
-                          {' → '}
-                          {booking.check_out_date?.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
-                        </span>
-                        <span className="text-white/50">{nights} night{nights > 1 ? 's' : ''}</span>
-                      </div>
+                      {bookingMode === 'hourly' ? (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/50">
+                            {hourlyDate?.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
+                          </span>
+                          <span className="text-white/50">{hourlyDuration || 0} hour{hourlyDuration > 1 ? 's' : ''}</span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/50">
+                            {booking.check_in_date?.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
+                            {' → '}
+                            {booking.check_out_date?.toLocaleDateString('en-KE', { day: 'numeric', month: 'short' })}
+                          </span>
+                          <span className="text-white/50">{nights} night{nights > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between font-bold border-t border-white/8 pt-2">
                         <span className="text-white">Total</span>
-                        <span className="text-gold">KES {subtotal.toLocaleString()}</span>
+                        <span className="text-gold">KES {(bookingMode === 'hourly' ? hourlyDisplayAmount : finalTotal).toLocaleString()}</span>
                       </div>
                     </div>
 
@@ -540,9 +768,9 @@ const handleBooking = async () => {
                         <div className="w-20 h-20 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
                           <span className="text-4xl">✅</span>
                         </div>
-                        <h3 className="text-white font-bold text-xl mb-2">Payment Confirmed!</h3>
+                        <h3 className="text-white font-bold text-xl mb-2">Payment Received</h3>
                         <p className="text-white/50 text-sm mb-2">
-                          Your booking is confirmed. The host has been notified.
+                          We received your payment and the host has been notified.
                         </p>
                         <p className="text-gold font-semibold mb-6">Ref: {bookingRef}</p>
                         <button

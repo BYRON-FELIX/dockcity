@@ -3,9 +3,26 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from django.db.models import Avg
 from .models import Review
 from .serializers import ReviewSerializer, ReviewCreateSerializer, HostReplySerializer
 from bookings.models import Booking
+from django.utils import timezone
+
+
+def recalculate_ratings(reviewee):
+    """Recalculate and store the average rating for the reviewed user."""
+    reviews = Review.objects.filter(reviewee=reviewee, is_visible=True)
+    avg = reviews.aggregate(Avg('rating'))['rating__avg']
+    count = reviews.count()
+
+    if reviewee.role == 'host' and hasattr(reviewee, 'host_profile'):
+        reviewee.host_profile.average_rating = round(avg, 2) if avg else 0
+        reviewee.host_profile.save()
+    else:
+        reviewee.guest_average_rating = round(avg, 2) if avg else None
+        reviewee.guest_rating_count = count
+        reviewee.save(update_fields=['guest_average_rating', 'guest_rating_count'])
 
 
 class SubmitReviewView(APIView):
@@ -55,11 +72,14 @@ class SubmitReviewView(APIView):
             comment=data['comment'],
             is_visible=False,
         )
+        recalculate_ratings(review.reviewee)
 
         # If both parties have now reviewed — make both visible
         both_reviewed = Review.objects.filter(booking=booking).count() == 2
         if both_reviewed:
             Review.objects.filter(booking=booking).update(is_visible=True)
+            for visible_review in Review.objects.filter(booking=booking):
+                recalculate_ratings(visible_review.reviewee)
 
         return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
@@ -96,3 +116,87 @@ class HostReplyView(APIView):
             review.save()
             return Response(ReviewSerializer(review).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminAllReviewsView(APIView):
+    """Admin — list all reviews regardless of visibility, for moderation."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'admin':
+            return Response({'error': 'Admin only.'}, status=status.HTTP_403_FORBIDDEN)
+
+        reviews = Review.objects.all().order_by('-submitted_at')
+        data = []
+        for r in reviews:
+            data.append({
+                'id': r.id,
+                'rating': r.rating,
+                'comment': r.comment,
+                'host_reply': r.host_reply,
+                'is_visible': r.is_visible,
+                'reviewer_name': r.reviewer.full_name,
+                'reviewee_name': r.reviewee.full_name,
+                'submitted_at': r.submitted_at,
+            })
+        return Response(data)
+
+
+class AdminDeleteReviewView(APIView):
+    """Admin — delete any review (e.g. abusive, fake, or inappropriate)."""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        if request.user.role != 'admin':
+            return Response({'error': 'Admin only.'}, status=status.HTTP_403_FORBIDDEN)
+
+        review = get_object_or_404(Review, pk=pk)
+        review.delete()
+
+        return Response({'message': 'Review deleted.'}, status=status.HTTP_204_NO_CONTENT)
+    
+class HostReplyToReviewView(APIView):
+    """Host replies to a review left about them. Only the affected host can reply."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        review = get_object_or_404(Review, pk=pk)
+
+        # Only the host who was reviewed can reply
+        if review.reviewee_id != request.user.id:
+            return Response(
+                {'error': 'You can only reply to reviews written about you.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if review.host_reply:
+            return Response(
+                {'error': 'You have already replied to this review.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        reply_text = request.data.get('reply', '').strip()
+        if not reply_text:
+            return Response({'error': 'Reply cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        review.host_reply = reply_text
+        review.save()
+
+        return Response({'message': 'Reply posted.', 'host_reply': review.host_reply})
+class HostReviewsListView(APIView):
+    """Host — list reviews written about them, so they can reply."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reviews = Review.objects.filter(reviewee=request.user).order_by('-submitted_at')
+        data = []
+        for r in reviews:
+            data.append({
+                'id': r.id,
+                'rating': r.rating,
+                'comment': r.comment,
+                'host_reply': r.host_reply,
+                'reviewer_name': r.reviewer.full_name,
+                'submitted_at': r.submitted_at,
+            })
+        return Response(data)

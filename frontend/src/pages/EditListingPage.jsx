@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
@@ -15,45 +15,59 @@ const AMENITIES_OPTIONS = [
   'Washing Machine', 'Hot Water', 'Study Desk', 'Smart TV'
 ]
 
-export default function CreateListingPage() {
+export default function EditListingPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { id } = useParams()
   const { neighborhoods } = useNeighborhoods()
 
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    neighborhood: '',
-    city: 'Nairobi',
-    full_address: '',
-    area_description: '',
-    price_per_night_kes: '',
-    price_per_week_kes: '',
-    price_per_month_kes: '',
-    max_guests: 1,
-    bedrooms: 1,
-    bathrooms: 1,
-    house_rules: '',
-    amenities: [],
-    photos: [],
-    latitude: null,
-    longitude: null,
-    caretaker_name: '',
-    caretaker_phone: '',
-    earliest_checkin_time: '14:00',
-    latest_checkin_time: '22:00',
-    earliest_checkout_time: '08:00',
-    latest_checkout_time: '11:00',
-    is_hourly_available: false,
-    hourly_pricing_type: 'flat_rate',
-    hourly_rate_kes: '',
-    hourly_min_hours: 2,
-    hourly_blocks: [{ hours: 3, price_kes: '' }, { hours: 6, price_kes: '' }],
-    long_stay_discounts: [{ min_nights: 7, discount_percent: 10 }],
-  })
-
+  const [form, setForm] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
   const [step, setStep] = useState(1)
+
+  useEffect(() => {
+    api.get(`/host/listings/${id}/`)
+      .then(res => {
+        const l = res.data
+        setForm({
+          title: l.title || '',
+          description: l.description || '',
+          neighborhood: l.neighborhood || '',
+          city: l.city || 'Nairobi',
+          full_address: l.full_address || '',
+          area_description: l.area_description || '',
+          latitude: l.latitude || null,
+          longitude: l.longitude || null,
+          caretaker_name: l.caretaker_name || '',
+          caretaker_phone: l.caretaker_phone || '',
+          price_per_night_kes: l.price_per_night_kes || '',
+          price_per_week_kes: l.price_per_week_kes || '',
+          price_per_month_kes: l.price_per_month_kes || '',
+          max_guests: l.max_guests || 1,
+          bedrooms: l.bedrooms || 1,
+          bathrooms: l.bathrooms || 1,
+          house_rules: l.house_rules || '',
+          amenities: l.amenities || [],
+          photos: l.photos || [],
+          earliest_checkin_time: l.earliest_checkin_time || '14:00',
+          latest_checkin_time: l.latest_checkin_time || '22:00',
+          earliest_checkout_time: l.earliest_checkout_time || '08:00',
+          latest_checkout_time: l.latest_checkout_time || '11:00',
+          is_hourly_available: l.is_hourly_available || false,
+          hourly_pricing_type: l.hourly_pricing_type || 'flat_rate',
+          hourly_rate_kes: l.hourly_rate_kes || '',
+          hourly_min_hours: l.hourly_min_hours || 2,
+          hourly_blocks: l.hourly_blocks || [{ hours: 3, price_kes: '' }, { hours: 6, price_kes: '' }],
+          long_stay_discounts: l.long_stay_discounts || [{ min_nights: 7, discount_percent: 10 }],
+        })
+      })
+      .catch(() => {
+        toast.error('Could not load this listing.')
+        navigate('/dashboard/host')
+      })
+      .finally(() => setFetching(false))
+  }, [id, navigate])
 
   const toggleAmenity = (amenity) => {
     setForm(prev => ({
@@ -96,7 +110,7 @@ export default function CreateListingPage() {
     return true
   }
 
-  const handleSubmit = async (asDraft = true) => {
+  const handleSubmit = async () => {
     if (!validateStep1() || !validateStep2()) return
     setLoading(true)
     try {
@@ -110,7 +124,7 @@ export default function CreateListingPage() {
         .filter(t => t.min_nights && t.discount_percent)
         .map(t => ({ min_nights: parseInt(t.min_nights), discount_percent: parseInt(t.discount_percent) }))
 
-      const res = await api.post('/host/listings/', {
+      await api.patch(`/host/listings/${id}/`, {
         ...form,
         latitude: form.latitude,
         longitude: form.longitude,
@@ -125,14 +139,7 @@ export default function CreateListingPage() {
         bedrooms: parseInt(form.bedrooms),
         bathrooms: parseInt(form.bathrooms),
       })
-
-      if (!asDraft) {
-        await api.post(`/host/listings/${res.data.id}/submit/`)
-        toast.success('Listing submitted for admin review!')
-      } else {
-        toast.success('Listing saved as draft.')
-      }
-
+      toast.success('Listing updated successfully!')
       navigate('/dashboard/host')
     } catch (err) {
       const errors = err.response?.data
@@ -140,21 +147,28 @@ export default function CreateListingPage() {
         const first = Object.values(errors)[0]
         toast.error(Array.isArray(first) ? first[0] : first)
       } else {
-        toast.error('Failed to create listing.')
+        toast.error('Failed to update listing.')
       }
     } finally {
       setLoading(false)
     }
   }
 
+  if (fetching || !form) return (
+    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-16">
+
         <div className="mb-8">
-          <h1 className="text-white text-2xl font-bold">Create a Listing</h1>
+          <h1 className="text-white text-2xl font-bold">Edit Listing</h1>
           <p className="text-white/40 text-sm mt-1">
-            Your listing will be reviewed by our team before going live.
+            Changes are applied immediately - no admin review needed.
           </p>
         </div>
 
@@ -178,6 +192,7 @@ export default function CreateListingPage() {
         </div>
 
         <div className="bg-[#111111] border border-white/8 rounded-2xl p-6">
+
           {step === 1 && (
             <div className="space-y-5">
               <div>
@@ -266,7 +281,7 @@ export default function CreateListingPage() {
                   initialLng={form.longitude}
                 />
                 {form.latitude && (
-                  <p className="text-green-400 text-xs mt-1">Location pinned successfully</p>
+                  <p className="text-green-400 text-xs mt-1">? Location pinned</p>
                 )}
               </div>
 
@@ -643,21 +658,13 @@ export default function CreateListingPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSubmit(true)}
-                  disabled={loading}
-                  className="flex-1 border border-gold/40 text-gold py-3 rounded-xl text-sm hover:bg-gold/10 disabled:opacity-50"
-                >
-                  Save as Draft
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSubmit(false)}
+                  onClick={handleSubmit}
                   disabled={loading}
                   className="flex-1 bg-gold text-dark font-bold py-3 rounded-xl hover:bg-gold/90 disabled:opacity-50 flex items-center justify-center"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-dark border-t-transparent rounded-full animate-spin" />
-                  ) : 'Submit for Review'}
+                  ) : 'Save Changes'}
                 </button>
               </div>
             </div>

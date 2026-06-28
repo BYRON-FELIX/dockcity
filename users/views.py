@@ -133,6 +133,9 @@ class BecomeHostView(APIView):
             caretaker_phone=request.data.get('caretaker_phone', '')
         )
 
+        from core.email import notify_host_application_submitted
+        notify_host_application_submitted(user)
+
         return Response(
             {'message': 'Host application submitted. Await admin approval.'},
             status=status.HTTP_201_CREATED

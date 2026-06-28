@@ -26,6 +26,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { neighborhoods } = useNeighborhoods()
   const [listings, setListings] = useState([])
+  const [hourlyListings, setHourlyListings] = useState([])
   const [neighborhoodSearch, setNeighborhoodSearch] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [search, setSearch] = useState({
@@ -38,6 +39,12 @@ export default function HomePage() {
 
   useEffect(() => {
     api.get('/listings/').then(res => setListings(res.data.slice(0, 4))).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    api.get('/listings/?hourly=true')
+      .then(res => setHourlyListings(res.data.slice(0, 4)))
+      .catch(() => {})
   }, [])
 
   const handleSearch = () => {
@@ -230,6 +237,29 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      {hourlyListings.length > 0 && (
+        <section className="py-16 px-4 max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-white text-2xl font-bold">Need a Place by the Hour?</h2>
+              <p className="text-white/40 text-sm mt-1">Book verified stays for a few hours, no overnight commitment</p>
+            </div>
+            <button
+              onClick={() => navigate('/browse?hourly=true')}
+              className="text-gold text-sm font-semibold hover:underline shrink-0"
+            >
+              See all →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {hourlyListings.map(listing => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Safety CTA ── */}
       <section className="py-16 bg-[#0A0A0A] border-t border-white/8">

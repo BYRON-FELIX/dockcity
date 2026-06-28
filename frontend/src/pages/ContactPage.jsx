@@ -39,7 +39,7 @@ export default function ContactPage() {
           <div className="space-y-5">
             {[
               { icon: Mail, label: 'Email', value: 'hello@thedockcity.com' },
-              { icon: Phone, label: 'Phone', value: '+254 700 000 000' },
+              { icon: Phone, label: 'Phone', value: '+254 113 203 486' },
               { icon: MapPin, label: 'Location', value: 'Nairobi, Kenya' },
             ].map(({ icon: Icon, label, value }) => (
               <div key={label} className="bg-[#111111] border border-white/8 rounded-xl p-5 flex items-center gap-4">

@@ -95,9 +95,10 @@ class AdminHostApplicationApproveView(APIView):
         profile.approved_by = request.user
         profile.save()
 
-        # TODO: WhatsApp notification to host
+        from core.email import notify_host_application_approved as notify_host_application_approved_email
         from core.sms import notify_host_application_approved
         notify_host_application_approved(profile.user)
+        notify_host_application_approved_email(profile.user)
 
         return Response({'message': f'Host {profile.user.full_name} approved successfully.'})
 
@@ -119,9 +120,10 @@ class AdminHostApplicationRejectView(APIView):
         profile.rejection_reason = reason
         profile.save()
 
-        # TODO: WhatsApp notification to host with reason
+        from core.email import notify_host_application_rejected as notify_host_application_rejected_email
         from core.sms import notify_host_application_rejected
         notify_host_application_rejected(profile.user, reason)
+        notify_host_application_rejected_email(profile.user, reason)
 
         return Response({'message': f'Host application rejected.'})
 

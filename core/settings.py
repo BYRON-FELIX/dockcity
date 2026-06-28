@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'bookings',
     'disputes',
     'reviews',
+    'sales',
 ]
 
 MIDDLEWARE = [
@@ -142,7 +143,15 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     os.getenv('FRONTEND_URL', 'http://localhost:5173'),
     os.getenv('BACKEND_URL', 'http://127.0.0.1:8000'),
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://13.140.178.102',
+    'http://13.140.178.102:8000',
+    'https://profusely-bubbly-earlobe.ngrok-free.dev',
 ]
+CORS_ALLOW_CREDENTIALS = True
 
 # Cloudinary
 CLOUDINARY_STORAGE = {

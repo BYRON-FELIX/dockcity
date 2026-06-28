@@ -14,6 +14,10 @@ import CreateListingPage from './pages/CreateListingPage'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import AdminPanel from './pages/AdminPanel'
+import EditListingPage from './pages/EditListingPage'
+import PropertiesForSalePage from './pages/PropertiesForSalePage'
+import PropertySaleDetailPage from './pages/PropertySaleDetailPage'
+import ListPropertyForSalePage from './pages/ListPropertyForSalePage'
 
 function AppContent() {
   const { needsProfile } = useAuth()
@@ -39,6 +43,10 @@ function AppContent() {
         <Route path="/dashboard/host" element={<HostDashboard />} />
         <Route path="/become-host" element={<BecomeHostPage />} />
         <Route path="/host/listings/new" element={<CreateListingPage />} />
+        <Route path="/host/listings/:id/edit" element={<EditListingPage />} />
+        <Route path="/properties-for-sale" element={<PropertiesForSalePage />} />
+        <Route path="/properties-for-sale/:id" element={<PropertySaleDetailPage />} />
+        <Route path="/properties-for-sale/list" element={<ListPropertyForSalePage />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />

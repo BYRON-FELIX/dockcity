@@ -34,6 +34,11 @@ export default function GuestDashboard() {
   const [dispute, setDispute] = useState({ reason: '' })
   const [receiptModal, setReceiptModal] = useState(null)
   const [receipt, setReceipt] = useState(null)
+  const [retryModal, setRetryModal] = useState(null) // booking id
+  const [retryPhone, setRetryPhone] = useState('')
+  const [retryLoading, setRetryLoading] = useState(false)
+  const [paymentStatus, setPaymentStatus] = useState(null) // null | 'waiting' | 'success' | 'failed' | 'timeout'
+  const [activeBookingRef, setActiveBookingRef] = useState(null)
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/')
@@ -113,6 +118,57 @@ export default function GuestDashboard() {
     }
   }
 
+  const handleOpenRetry = (booking) => {
+    setRetryPhone(user?.phone_number || '')
+    setRetryModal(booking.id)
+  }
+
+  const handleRetryPayment = async () => {
+    if (!retryPhone) return toast.error('Phone number is required.')
+    const phone = retryPhone.replace(/\s/g, '')
+    if (!/^(07|01|2547|2541|\+2547|\+2541)\d{7,8}$/.test(phone)) {
+      return toast.error('Enter a valid Kenyan phone number e.g. 0712345678')
+    }
+
+    setRetryLoading(true)
+    try {
+      const booking = bookings.find(b => b.id === retryModal)
+      await api.post(`/bookings/${retryModal}/retry-payment/`, { phone_number: phone })
+      setActiveBookingRef(booking?.reference_code)
+      setRetryModal(null)
+      setPaymentStatus('waiting')
+
+      let attempts = 0
+      const maxAttempts = 24 // 24 x 5s = 2 minutes
+
+      const poll = setInterval(async () => {
+        attempts++
+        try {
+          const statusRes = await api.get('/bookings/guest/me/')
+          const updated = statusRes.data.find(b => b.id === retryModal)
+          setBookings(statusRes.data)
+          if (updated && updated.status === 'awaiting_host') {
+            clearInterval(poll)
+            setPaymentStatus('success')
+          } else if (updated && updated.status === 'cancelled') {
+            clearInterval(poll)
+            setPaymentStatus('failed')
+          }
+        } catch {}
+
+        if (attempts >= maxAttempts) {
+          clearInterval(poll)
+          setPaymentStatus('timeout')
+        }
+      }, 5000)
+
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Retry failed. Try again.')
+    } finally {
+      setRetryLoading(false)
+    }
+  }
+
   const isWithin24hrs = (checkedInAt) => {
     if (!checkedInAt) return false
     const hours = (new Date() - new Date(checkedInAt)) / (1000 * 60 * 60)
@@ -149,6 +205,34 @@ export default function GuestDashboard() {
             </button>
           ))}
         </div>
+
+        {/* Declined booking banners */}
+        {bookings
+          .filter(b => b.status === 'cancelled' && b.cancellation_reason && b.refund_status === 'pending')
+          .map(b => (
+            <div key={b.id} className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4 flex items-start gap-3">
+              <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-red-400 text-sm font-semibold">
+                  Your booking for {b.listing_title} was declined
+                </p>
+                <p className="text-red-400/70 text-xs mt-1">
+                  Reason: {b.cancellation_reason}
+                </p>
+                <p className="text-white/50 text-xs mt-2">
+                  A full refund of KES {b.total_amount_kes?.toLocaleString()} is being processed.
+                  You're free to browse other verified stays in the meantime.
+                </p>
+                <button
+                  onClick={() => navigate('/browse')}
+                  className="mt-3 bg-gold text-dark text-xs font-bold px-4 py-2 rounded-lg hover:bg-gold/90 transition-colors"
+                >
+                  Browse Other Stays
+                </button>
+              </div>
+            </div>
+          ))
+        }
 
         {/* Bookings */}
         {filteredBookings.length === 0 ? (
@@ -205,8 +289,30 @@ export default function GuestDashboard() {
                         </div>
                       </div>
 
+                      {/* Post-payment waiting message */}
+                      {booking.status === 'awaiting_host' && (
+                        <div className="mt-3 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
+                          <p className="text-blue-400 text-xs font-semibold mb-0.5">✅ Payment Received</p>
+                          <p className="text-white/50 text-xs leading-relaxed">
+                            Your payment has been received and is held securely in escrow.
+                            The host has been notified and has up to <span className="text-white/80 font-semibold">2 hours</span> to confirm your booking.
+                            You'll be notified immediately once they respond.
+                          </p>
+                        </div>
+                      )}
+
                       {/* Action buttons */}
                       <div className="flex flex-wrap gap-2">
+                        {/* Retry payment */}
+                        {booking.status === 'pending_payment' && (
+                          <button
+                            onClick={() => handleOpenRetry(booking)}
+                            className="flex items-center gap-1 bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-500/20 transition-colors"
+                          >
+                            📲 Retry Payment
+                          </button>
+                        )}
+
                         {/* Confirm check-in */}
                         {booking.status === 'confirmed' && (
                           <button
@@ -226,6 +332,11 @@ export default function GuestDashboard() {
                           >
                             🧾 View Receipt
                           </button>
+                        )}
+
+                        {/* Quick directions — separate from receipt, no need to open it */}
+                        {['confirmed', 'checked_in', 'completed'].includes(booking.status) && (
+                          <AddressReveal bookingId={booking.id} />
                         )}
 
                         {/* Raise dispute — 24hr window after check-in */}
@@ -436,6 +547,134 @@ export default function GuestDashboard() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Retry Payment Modal */}
+      {retryModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
+          <div className="bg-[#111111] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 bg-green-500/10 border border-green-500/20 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">📱</span>
+              </div>
+              <h3 className="text-white font-bold text-lg">Retry M-Pesa Payment</h3>
+              <p className="text-white/40 text-sm mt-1">
+                We'll send a fresh payment prompt to this number
+              </p>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-white/50 text-xs mb-1 block">M-Pesa Phone Number</label>
+              <div className="flex gap-2">
+                <div className="bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-3 text-white/50 text-sm shrink-0">
+                  🇰🇪 +254
+                </div>
+                <input
+                  type="tel"
+                  value={retryPhone}
+                  onChange={e => setRetryPhone(e.target.value)}
+                  placeholder="0712 345 678"
+                  className="flex-1 bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-green-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setRetryModal(null)}
+                className="flex-1 border border-white/10 text-white/50 py-3 rounded-xl text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRetryPayment}
+                disabled={retryLoading}
+                className="flex-1 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {retryLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>📲 Send Payment Request</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Status Screen (reused for retries) */}
+      {paymentStatus && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 px-4">
+          <div className="bg-[#111111] border border-white/10 rounded-2xl p-8 w-full max-w-md text-center">
+
+            {paymentStatus === 'waiting' && (
+              <>
+                <div className="w-20 h-20 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mx-auto mb-6" />
+                <h3 className="text-white font-bold text-xl mb-2">Waiting for Payment</h3>
+                <p className="text-white/50 text-sm mb-4">
+                  Check your phone and enter your M-Pesa PIN
+                </p>
+                <p className="text-white/20 text-xs">Booking ref: {activeBookingRef}</p>
+                <button
+                  onClick={() => setPaymentStatus(null)}
+                  className="mt-4 text-white/30 text-xs hover:text-white transition-colors"
+                >
+                  I'll check later →
+                </button>
+              </>
+            )}
+
+            {paymentStatus === 'success' && (
+              <>
+                <div className="w-20 h-20 bg-green-500/10 border border-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-4xl">✅</span>
+                </div>
+                <h3 className="text-white font-bold text-xl mb-2">Payment Received</h3>
+                <p className="text-white/50 text-sm mb-6">Your payment is complete and the host has been notified.</p>
+                <button
+                  onClick={() => setPaymentStatus(null)}
+                  className="w-full bg-gold text-dark font-bold py-3 rounded-xl hover:bg-gold/90 transition-colors"
+                >
+                  Got it
+                </button>
+              </>
+            )}
+
+            {paymentStatus === 'failed' && (
+              <>
+                <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-4xl">❌</span>
+                </div>
+                <h3 className="text-white font-bold text-xl mb-2">Payment Failed</h3>
+                <p className="text-white/50 text-sm mb-6">The booking was cancelled. You can rebook if you'd still like this stay.</p>
+                <button
+                  onClick={() => setPaymentStatus(null)}
+                  className="w-full border border-white/10 text-white/50 py-3 rounded-xl text-sm"
+                >
+                  Close
+                </button>
+              </>
+            )}
+
+            {paymentStatus === 'timeout' && (
+              <>
+                <div className="w-20 h-20 bg-yellow-500/10 border border-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <span className="text-4xl">⏱️</span>
+                </div>
+                <h3 className="text-white font-bold text-xl mb-2">Still Waiting</h3>
+                <p className="text-white/50 text-sm mb-6">
+                  We couldn't confirm yet. Check back in My Trips, or retry payment.
+                </p>
+                <button
+                  onClick={() => setPaymentStatus(null)}
+                  className="w-full bg-gold text-dark font-bold py-3 rounded-xl"
+                >
+                  Close
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

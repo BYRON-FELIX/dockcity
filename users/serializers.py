@@ -13,8 +13,9 @@ class UserSerializer(serializers.ModelSerializer):
             'phone_number',
             'is_active', 'created_at',
             'host_profile_status', 'host_profile_trust_level',
+            'guest_average_rating', 'guest_rating_count',
         ]
-        read_only_fields = ['id', 'is_active', 'created_at']
+        read_only_fields = ['id', 'is_active', 'created_at', 'guest_average_rating', 'guest_rating_count']
 
     def get_host_profile_status(self, obj):
         if hasattr(obj, 'host_profile'):

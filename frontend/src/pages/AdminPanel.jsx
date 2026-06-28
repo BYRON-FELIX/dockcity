@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Home, AlertTriangle,
   CheckCircle, XCircle, Shield, TrendingUp,
-  Clock, DollarSign, Eye, ChevronRight
+  Clock, DollarSign, Eye, ChevronRight, Star, CreditCard, Calendar
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api from '../api/axios'
@@ -14,7 +14,12 @@ const TABS = [
   { id: 'hosts', label: 'Host Applications', icon: Users },
   { id: 'listings', label: 'Listings', icon: Home },
   { id: 'disputes', label: 'Disputes', icon: AlertTriangle },
+  { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'payouts', label: 'Payouts', icon: DollarSign },
+  { id: 'refunds', label: 'Refunds Needed', icon: AlertTriangle },
+  { id: 'sale_listings', label: 'Sale Listings', icon: Home },
+  { id: 'viewings', label: 'Viewings', icon: Calendar },
+  { id: 'reviews', label: 'Reviews', icon: Star },
   { id: 'users', label: 'Users', icon: Shield },
 ]
 
@@ -22,158 +27,28 @@ export default function AdminPanel() {
   const { user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('dashboard')
-  const [data, setData] = useState({
-    dashboard: null,
-    hosts: [],
-    listings: [],
-    disputes: [],
-    users: [],
-  })
-  const [payouts, setPayouts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [rejectModal, setRejectModal] = useState(null)
-  const [rejectReason, setRejectReason] = useState('')
-  const [resolveModal, setResolveModal] = useState(null)
-  const [resolveForm, setResolveForm] = useState({
-    resolution: 'resolved_for_guest',
-    admin_notes: '',
-    resolution_details: '',
-  })
+  const [data, setData] = useState({ dashboard: null, hosts: [], listings: [], disputes: [], users: [] })
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'admin')) {
-      navigate('/')
-    }
+    if (!authLoading && (!user || user.role !== 'admin')) navigate('/')
   }, [user, authLoading])
 
   useEffect(() => {
-    if (user?.role === 'admin') fetchAll()
+    if (user?.role === 'admin') fetchSummary()
   }, [user])
 
-  useEffect(() => {
-    if (activeTab === 'payouts') fetchPayouts()
-  }, [activeTab])
-
-  const fetchPayouts = async () => {
-    try {
-      const res = await api.get('/bookings/host/me/')
-      // Get all completed bookings across all hosts
-      const res2 = await api.get('/admin/bookings/')
-      setPayouts(res2.data)
-    } catch {}
-  }
-
-  const fetchAll = async () => {
+  const fetchSummary = async () => {
     setLoading(true)
     try {
-      const [dashRes, hostsRes, disputesRes, payoutsRes] = await Promise.all([
-        api.get('/admin/dashboard/'),
-        api.get('/admin/host-applications/'),
-        api.get('/admin/disputes/'),
-        api.get('/admin/payouts/'),
-      ])
-      setData(prev => ({
-        ...prev,
-        dashboard: dashRes.data,
-        hosts: hostsRes.data,
-        disputes: disputesRes.data,
-      }))
-    } catch {
+      const [dashRes] = await Promise.all([api.get('/admin/dashboard/').catch(() => ({ data: null }))])
+      setData(prev => ({ ...prev, dashboard: dashRes.data }))
+    } catch (err) {
       toast.error('Failed to load admin data.')
     } finally {
       setLoading(false)
     }
   }
-
-  const handleApproveHost = async (id) => {
-    try {
-      await api.post(`/admin/host-applications/${id}/approve/`)
-      toast.success('Host approved!')
-      setData(prev => ({
-        ...prev,
-        hosts: prev.hosts.filter(h => h.id !== id)
-      }))
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to approve.')
-    }
-  }
-
-  const handleRejectHost = async () => {
-    if (!rejectReason) return toast.error('Rejection reason is required.')
-    try {
-      await api.post(`/admin/host-applications/${rejectModal}/reject/`, { reason: rejectReason })
-      toast.success('Host application rejected.')
-      setData(prev => ({
-        ...prev,
-        hosts: prev.hosts.filter(h => h.id !== rejectModal)
-      }))
-      setRejectModal(null)
-      setRejectReason('')
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to reject.')
-    }
-  }
-
-  const handleApproveListing = async (id) => {
-    try {
-      await api.post(`/admin/listings/${id}/approve/`)
-      toast.success('Listing approved and now live!')
-      fetchAll()
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to approve listing.')
-    }
-  }
-
-  const handleSuspendListing = async (id) => {
-    try {
-      await api.post(`/admin/listings/${id}/suspend/`)
-      toast.success('Listing suspended.')
-      fetchAll()
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to suspend.')
-    }
-  }
-
-  const handleSuspendUser = async (id) => {
-    try {
-      await api.post(`/admin/users/${id}/suspend/`)
-      toast.success('User suspended.')
-      fetchAll()
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to suspend user.')
-    }
-  }
-
-  const handleResolveDispute = async () => {
-    if (!resolveForm.admin_notes || !resolveForm.resolution_details) {
-      return toast.error('Please fill in all fields.')
-    }
-    try {
-      await api.post(`/admin/disputes/${resolveModal}/resolve/`, resolveForm)
-      toast.success('Dispute resolved.')
-      setData(prev => ({
-        ...prev,
-        disputes: prev.disputes.map(d =>
-          d.id === resolveModal ? { ...d, status: resolveForm.resolution } : d
-        )
-      }))
-      setResolveModal(null)
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to resolve dispute.')
-    }
-  }
-
-  // Fetch pending listings separately
-  const fetchPendingListings = async () => {
-    try {
-      const res = await api.get('/listings/?status=pending_review')
-      setData(prev => ({ ...prev, listings: res.data }))
-    } catch {}
-  }
-
-  useEffect(() => {
-    if (activeTab === 'listings') fetchPendingListings()
-  }, [activeTab])
 
   if (authLoading || loading) return (
     <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
@@ -181,478 +56,292 @@ export default function AdminPanel() {
     </div>
   )
 
-  const { dashboard } = data
-
   return (
     <div className="min-h-screen bg-[#0A0A0A] flex">
-
-      {/* Sidebar */}
-      <div className="w-64 bg-[#111111] border-r border-white/8 flex flex-col shrink-0">
-        {/* Logo */}
-        <div>
-          <img
-            src="https://res.cloudinary.com/dzczkq1nl/image/upload/v1780476676/stayhaki_logo_davvxw.png"
-            alt="The Dock City"
-            className="h-8 w-auto object-contain mb-1"
-          />
+      <div className="w-64 bg-[#111111] border-r border-white/8 flex flex-col shrink-0 p-4">
+        <div className="mb-4">
+          <img src="https://res.cloudinary.com/dzczkq1nl/image/upload/v1780476676/stayhaki_logo_davvxw.png" alt="logo" className="h-8 mb-1" />
           <p className="text-white/30 text-xs">Admin Panel</p>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 space-y-1">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors ${
-                activeTab === id
-                  ? 'bg-gold text-dark font-semibold'
-                  : 'text-white/50 hover:text-white hover:bg-white/5'
+                activeTab === id ? 'bg-gold text-dark font-semibold' : 'text-white/50 hover:text-white hover:bg-white/5'
               }`}
             >
               <Icon size={16} />
               {label}
-              {id === 'hosts' && data.hosts.length > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                  {data.hosts.length}
-                </span>
-              )}
-              {id === 'disputes' && data.disputes.filter(d => d.status === 'open').length > 0 && (
-                <span className="ml-auto bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                  {data.disputes.filter(d => d.status === 'open').length}
-                </span>
-              )}
             </button>
           ))}
         </nav>
 
-        {/* Admin info */}
-        <div className="p-4 border-t border-white/8">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#1A1A1A] rounded-full flex items-center justify-center text-gold text-sm font-bold">
-              {user?.full_name?.[0]?.toUpperCase()}
-            </div>
-            <div>
-              <p className="text-white text-xs font-medium">{user?.full_name}</p>
-              <p className="text-white/30 text-xs">Administrator</p>
-            </div>
-          </div>
-          <button
-            onClick={() => navigate('/')}
-            className="mt-3 w-full text-xs text-white/30 hover:text-white transition-colors text-left"
-          >
-            ← Back to site
-          </button>
+        <div className="pt-4">
+          <button onClick={() => navigate('/')} className="w-full text-xs text-white/30 hover:text-white text-left">← Back to site</button>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 overflow-auto">
-        <div className="p-8">
+      <div className="flex-1 overflow-auto p-8">
+        {activeTab === 'dashboard' && (
+          <div>
+            <h1 className="text-white text-2xl font-bold mb-2">Dashboard</h1>
+            <p className="text-white/40 text-sm mb-6">Platform overview</p>
+            <div className="bg-[#111111] border border-white/8 rounded-xl p-6 text-white/40">Dashboard summary coming soon.</div>
+          </div>
+        )}
 
-          {/* ── Dashboard ── */}
-          {activeTab === 'dashboard' && dashboard && (
-            <div>
-              <h1 className="text-white text-2xl font-bold mb-2">Dashboard</h1>
-              <p className="text-white/40 text-sm mb-8">Platform overview</p>
+        {activeTab === 'payments' && (
+          <div>
+            <h1 className="text-white text-2xl font-bold mb-2">Recent Payments</h1>
+            <p className="text-white/40 text-sm mb-6">Latest bookings where payment has been received.</p>
+            <RecentPaymentsTab />
+          </div>
+        )}
 
-              {/* Stats grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                {[
-                  { label: 'Total Users', value: dashboard.users?.total, icon: Users, color: 'text-blue-400' },
-                  { label: 'Active Listings', value: dashboard.listings?.live, icon: Home, color: 'text-green-400' },
-                  { label: 'Total Bookings', value: dashboard.bookings?.total, icon: TrendingUp, color: 'text-purple-400' },
-                  { label: 'Platform Revenue', value: `KES ${dashboard.platform_revenue_kes?.toLocaleString()}`, icon: DollarSign, color: 'text-gold' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className="bg-[#111111] border border-white/8 rounded-xl p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Icon size={16} className={color} />
-                      <span className="text-white/40 text-xs">{label}</span>
-                    </div>
-                    <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                  </div>
-                ))}
-              </div>
+        {activeTab === 'refunds' && (
+          <div>
+            <h1 className="text-white text-2xl font-bold mb-2">Refunds Needed</h1>
+            <p className="text-white/40 text-sm mb-6">Guests whose bookings were declined and are waiting on a refund</p>
+            <RefundsTab />
+          </div>
+        )}
 
-              {/* Secondary stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                {[
-                  { label: 'Total Hosts', value: dashboard.users?.hosts },
-                  { label: 'Total Guests', value: dashboard.users?.guests },
-                  { label: 'Pending Listings', value: dashboard.listings?.pending_review },
-                  { label: 'Open Disputes', value: dashboard.disputes?.open },
-                  { label: 'Active Bookings', value: dashboard.bookings?.active },
-                  { label: 'Pending Host Apps', value: dashboard.host_applications?.pending },
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-[#111111] border border-white/8 rounded-xl p-4">
-                    <p className="text-white/40 text-xs mb-1">{label}</p>
-                    <p className="text-white text-xl font-bold">{value}</p>
-                  </div>
-                ))}
-              </div>
+        {activeTab === 'reviews' && (
+          <div>
+            <h1 className="text-white text-2xl font-bold mb-2">Reviews</h1>
+            <p className="text-white/40 text-sm mb-6">Moderate guest and host reviews. Deleting is permanent.</p>
+            <ReviewsModerationTab />
+          </div>
+        )}
 
-              {/* Quick actions */}
-              <h2 className="text-white font-semibold mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'Review Host Applications', tab: 'hosts', count: dashboard.host_applications?.pending, color: 'border-blue-400/20 text-blue-400' },
-                  { label: 'Approve Listings', tab: 'listings', count: dashboard.listings?.pending_review, color: 'border-green-400/20 text-green-400' },
-                  { label: 'Resolve Disputes', tab: 'disputes', count: dashboard.disputes?.open, color: 'border-orange-400/20 text-orange-400' },
-                  { label: 'Manage Users', tab: 'users', color: 'border-white/10 text-white/50' },
-                ].map(({ label, tab, count, color }) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`bg-[#111111] border rounded-xl p-4 text-left hover:bg-white/5 transition-colors ${color}`}
-                  >
-                    <p className="font-semibold text-sm mb-1">{label}</p>
-                    {count !== undefined && (
-                      <p className="text-xs opacity-60">{count} pending</p>
-                    )}
-                    <ChevronRight size={14} className="mt-2 opacity-50" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+        {activeTab === 'sale_listings' && (
+          <div>
+            <h1 className="text-white text-2xl font-bold mb-2">Properties for Sale</h1>
+            <p className="text-white/40 text-sm mb-6">Review and approve sale listing submissions</p>
+            <SaleListingsTab />
+          </div>
+        )}
 
-          {/* ── Host Applications ── */}
-          {activeTab === 'hosts' && (
-            <div>
-              <h1 className="text-white text-2xl font-bold mb-2">Host Applications</h1>
-              <p className="text-white/40 text-sm mb-6">
-                {data.hosts.length} pending application{data.hosts.length !== 1 ? 's' : ''}
-              </p>
+        {activeTab === 'viewings' && (
+          <div>
+            <h1 className="text-white text-2xl font-bold mb-2">Viewing Requests</h1>
+            <p className="text-white/40 text-sm mb-6">Coordinate property viewings between buyers and sellers</p>
+            <ViewingsTab />
+          </div>
+        )}
 
-              {data.hosts.length === 0 ? (
-                <div className="text-center py-24 text-white/20">
-                  <Users size={40} className="mx-auto mb-3 opacity-30" />
-                  <p>No pending host applications</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {data.hosts.map(host => (
-                    <div key={host.id} className="bg-[#111111] border border-white/8 rounded-xl p-6">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-[#1A1A1A] rounded-full flex items-center justify-center text-gold text-lg font-bold">
-                            {host.user?.full_name?.[0]?.toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-white font-semibold">{host.user?.full_name}</p>
-                            <p className="text-white/40 text-sm">{host.user?.email}</p>
-                            <p className="text-white/30 text-xs mt-1">
-                              Applied {new Date(host.user?.created_at).toLocaleDateString('en-KE', {
-                                day: 'numeric', month: 'short', year: 'numeric'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2 shrink-0">
-                          <button
-                            onClick={() => handleApproveHost(host.id)}
-                            className="flex items-center gap-1 bg-green-500/10 border border-green-500/30 text-green-400 text-sm px-4 py-2 rounded-lg hover:bg-green-500/20 transition-colors font-semibold"
-                          >
-                            <CheckCircle size={14} />
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => setRejectModal(host.id)}
-                            className="flex items-center gap-1 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-2 rounded-lg hover:bg-red-500/20 transition-colors"
-                          >
-                            <XCircle size={14} />
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Caretaker info */}
-                      {(host.caretaker_name || host.caretaker_phone) && (
-                        <div className="mt-4 pt-4 border-t border-white/8 flex gap-6 text-sm text-white/50">
-                          <span>Caretaker: <span className="text-white/70">{host.caretaker_name}</span></span>
-                          <span>Phone: <span className="text-white/70">{host.caretaker_phone}</span></span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Listings ── */}
-          {activeTab === 'listings' && (
-            <div>
-              <h1 className="text-white text-2xl font-bold mb-2">Listings</h1>
-              <p className="text-white/40 text-sm mb-6">Pending review listings</p>
-
-              {data.listings.length === 0 ? (
-                <div className="text-center py-24 text-white/20">
-                  <Home size={40} className="mx-auto mb-3 opacity-30" />
-                  <p>No listings pending review</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {data.listings.map(listing => (
-                    <div key={listing.id} className="bg-[#111111] border border-white/8 rounded-xl overflow-hidden">
-                      <div className="flex gap-4 p-5">
-                        {/* Photo */}
-                        <div className="w-32 h-24 rounded-lg overflow-hidden shrink-0 bg-[#1A1A1A]">
-                          {listing.photos?.[0] && (
-                            <img src={listing.photos[0]} alt="" className="w-full h-full object-cover" />
-                          )}
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <h3 className="text-white font-semibold">{listing.title}</h3>
-                              <p className="text-white/40 text-sm mt-0.5">
-                                {listing.neighborhood} · {listing.bedrooms} bed · {listing.bathrooms} bath · max {listing.max_guests} guests
-                              </p>
-                              <p className="text-gold text-sm font-semibold mt-1">
-                                KES {listing.price_per_night_kes?.toLocaleString()} / night
-                              </p>
-                            </div>
-
-                            <div className="flex gap-2 shrink-0">
-                              <button
-                                onClick={() => handleApproveListing(listing.id)}
-                                className="flex items-center gap-1 bg-green-500/10 border border-green-500/30 text-green-400 text-sm px-4 py-2 rounded-lg hover:bg-green-500/20 font-semibold"
-                              >
-                                <CheckCircle size={14} />
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleSuspendListing(listing.id)}
-                                className="flex items-center gap-1 bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-4 py-2 rounded-lg hover:bg-red-500/20"
-                              >
-                                <XCircle size={14} />
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-
-                          <p className="text-white/30 text-xs mt-2 line-clamp-2">{listing.description}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Disputes ── */}
-          {activeTab === 'disputes' && (
-            <div>
-              <h1 className="text-white text-2xl font-bold mb-2">Disputes</h1>
-              <p className="text-white/40 text-sm mb-6">{data.disputes.length} total disputes</p>
-
-              {data.disputes.length === 0 ? (
-                <div className="text-center py-24 text-white/20">
-                  <AlertTriangle size={40} className="mx-auto mb-3 opacity-30" />
-                  <p>No disputes</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {data.disputes.map(dispute => (
-                    <div key={dispute.id} className="bg-[#111111] border border-white/8 rounded-xl p-5">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className={`text-xs px-2 py-1 rounded-full border ${
-                              dispute.status === 'open'
-                                ? 'text-orange-400 bg-orange-400/10 border-orange-400/20'
-                                : dispute.status === 'under_review'
-                                ? 'text-blue-400 bg-blue-400/10 border-blue-400/20'
-                                : 'text-green-400 bg-green-400/10 border-green-400/20'
-                            }`}>
-                              {dispute.status.replace(/_/g, ' ')}
-                            </span>
-                            <span className="text-white/30 text-xs">
-                              Booking: {dispute.booking_reference}
-                            </span>
-                          </div>
-                          <p className="text-white font-medium text-sm mb-1">
-                            Raised by: {dispute.raised_by_name}
-                          </p>
-                          <p className="text-white/50 text-sm leading-relaxed">{dispute.reason}</p>
-                        </div>
-
-                        {['open', 'under_review'].includes(dispute.status) && (
-                          <button
-                            onClick={() => {
-                              setResolveModal(dispute.id)
-                              setResolveForm({
-                                resolution: 'resolved_for_guest',
-                                admin_notes: '',
-                                resolution_details: '',
-                              })
-                            }}
-                            className="flex items-center gap-1 bg-gold/10 border border-gold/20 text-gold text-sm px-4 py-2 rounded-lg hover:bg-gold/20 shrink-0 font-semibold"
-                          >
-                            <Eye size={14} />
-                            Resolve
-                          </button>
-                        )}
-                      </div>
-
-                      {dispute.resolution_details && (
-                        <div className="mt-3 pt-3 border-t border-white/8">
-                          <p className="text-white/40 text-xs mb-1">Resolution</p>
-                          <p className="text-white/60 text-sm">{dispute.resolution_details}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── Payouts ── */}
-          {activeTab === 'payouts' && (
-            <div>
-              <h1 className="text-white text-2xl font-bold mb-2">Payouts</h1>
-              <p className="text-white/40 text-sm mb-6">
-                Manually mark host payouts as sent after transferring via M-Pesa
-              </p>
-
-              <PayoutsTab />
-            </div>
-          )}
-
-          {/* ── Users ── */}
-          {activeTab === 'users' && (
-            <div>
-              <h1 className="text-white text-2xl font-bold mb-2">Users</h1>
-              <p className="text-white/40 text-sm mb-6">Manage platform users</p>
-
-              <div className="bg-[#111111] border border-white/8 rounded-xl p-6 text-center text-white/30">
-                <p className="mb-2">User management coming soon.</p>
-                <p className="text-xs">Use Django Admin for now: <a href="http://127.0.0.1:8000/admin/users/user/" target="_blank" className="text-gold hover:underline">Open Django Admin</a></p>
-              </div>
-            </div>
-          )}
-        </div>
+        {activeTab === 'users' && (
+          <div>
+            <h1 className="text-white text-2xl font-bold mb-2">Users</h1>
+            <div className="bg-[#111111] border border-white/8 rounded-xl p-6 text-center text-white/30">User management via Django Admin</div>
+          </div>
+        )}
       </div>
-
-      {/* Reject Modal */}
-      {rejectModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
-          <div className="bg-[#111111] border border-white/10 rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-white font-bold text-lg mb-1">Reject Application</h3>
-            <p className="text-white/40 text-sm mb-4">Provide a reason — this will be sent to the host.</p>
-            <textarea
-              rows={3}
-              value={rejectReason}
-              onChange={e => setRejectReason(e.target.value)}
-              placeholder="Reason for rejection..."
-              className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold resize-none mb-4"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => { setRejectModal(null); setRejectReason('') }}
-                className="flex-1 border border-white/10 text-white/50 py-2 rounded-lg text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRejectHost}
-                className="flex-1 bg-red-500 text-white font-semibold py-2 rounded-lg text-sm hover:bg-red-600"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Resolve Dispute Modal */}
-      {resolveModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 px-4">
-          <div className="bg-[#111111] border border-white/10 rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-white font-bold text-lg mb-1">Resolve Dispute</h3>
-            <p className="text-white/40 text-sm mb-4">Review the case and provide a resolution.</p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-white/50 text-xs mb-1 block">Resolution</label>
-                <select
-                  value={resolveForm.resolution}
-                  onChange={e => setResolveForm({ ...resolveForm, resolution: e.target.value })}
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold"
-                >
-                  <option value="resolved_for_guest">Resolved for Guest</option>
-                  <option value="resolved_for_host">Resolved for Host</option>
-                  <option value="resolved_partial">Partial Resolution</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-white/50 text-xs mb-1 block">Admin Notes (internal)</label>
-                <textarea
-                  rows={2}
-                  value={resolveForm.admin_notes}
-                  onChange={e => setResolveForm({ ...resolveForm, admin_notes: e.target.value })}
-                  placeholder="Internal notes..."
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold resize-none"
-                />
-              </div>
-              <div>
-                <label className="text-white/50 text-xs mb-1 block">Resolution Details (sent to both parties)</label>
-                <textarea
-                  rows={3}
-                  value={resolveForm.resolution_details}
-                  onChange={e => setResolveForm({ ...resolveForm, resolution_details: e.target.value })}
-                  placeholder="Explain the resolution..."
-                  className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => setResolveModal(null)}
-                className="flex-1 border border-white/10 text-white/50 py-2 rounded-lg text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleResolveDispute}
-                className="flex-1 bg-gold text-dark font-bold py-2 rounded-lg text-sm hover:bg-gold/90"
-              >
-                Submit Resolution
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
+}
 
-  function PayoutsTab() {
+function RefundsTab() {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('completed')
 
   useEffect(() => {
-    api.get(`/admin/bookings/?status=${filter}`)
+    api.get('/admin/bookings/declined/')
       .then(res => setBookings(res.data))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [filter])
+  }, [])
 
-  const handleMarkPayout = async (bookingId) => {
+  const handleMarkRefundSent = async (bookingId) => {
     try {
-      await api.post(`/bookings/${bookingId}/mark-payout/`)
-      toast.success('Payout marked as sent!')
-      setBookings(prev => prev.map(b =>
-        b.id === bookingId ? { ...b, payout_sent_at: new Date().toISOString() } : b
-      ))
+      await api.post(`/bookings/${bookingId}/mark-refund-sent/`)
+      toast.success('Refund marked as sent!')
+      setBookings(prev => prev.filter(b => b.id !== bookingId))
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to mark payout.')
+      toast.error(err.response?.data?.error || 'Failed to mark refund.')
+    }
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  if (bookings.length === 0) return (
+    <div className="text-center py-24 text-white/20">
+      <CheckCircle size={40} className="mx-auto mb-3 opacity-30" />
+      <p>No pending refunds — all caught up</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {bookings.map(booking => (
+        <div key={booking.id} className="bg-[#111111] border border-red-500/20 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="text-white font-semibold">{booking.listing_title}</h3>
+              <p className="text-white/40 text-sm">Guest: {booking.guest_name} · Ref: {booking.reference_code}</p>
+              <p className="text-white/40 text-xs mt-2">Reason: {booking.cancellation_reason}</p>
+              <p className="text-gold font-bold mt-2">KES {booking.total_amount_kes?.toLocaleString()}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => handleMarkRefundSent(booking.id)} className="bg-green-500/10 border border-green-500/30 text-green-400 text-sm px-4 py-2 rounded-lg">Mark Refund Sent</button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RecentPaymentsTab() {
+  const [payments, setPayments] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/admin/bookings/recent-payments/')
+      .then(res => setPayments(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  if (payments.length === 0) return (
+    <div className="text-center py-24 text-white/20">
+      <CheckCircle size={40} className="mx-auto mb-3 opacity-30" />
+      <p>No recent payments found.</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {payments.map(payment => (
+        <div key={payment.id} className="bg-[#111111] border border-white/10 rounded-xl p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex-1">
+              <h3 className="text-white font-semibold">{payment.listing_title}</h3>
+              <p className="text-white/40 text-sm">Guest: {payment.guest_name} · Ref: {payment.reference_code}</p>
+              <p className="text-white/40 text-xs mt-2">Status: {payment.status.replace('_', ' ')}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-gold font-bold">KES {payment.total_amount_kes?.toLocaleString()}</p>
+              <p className="text-white/40 text-xs">{payment.check_in_date} → {payment.check_out_date}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ReviewsModerationTab() {
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get('/reviews/all/')
+      .then(res => setReviews(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleDelete = async (reviewId) => {
+    if (!window.confirm('Delete this review permanently? This cannot be undone.')) return
+    try {
+      await api.delete(`/admin/reviews/${reviewId}/`)
+      toast.success('Review deleted.')
+      setReviews(prev => prev.filter(r => r.id !== reviewId))
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to delete review.')
+    }
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  if (reviews.length === 0) return (
+    <div className="text-center py-24 text-white/20">
+      <Star size={40} className="mx-auto mb-3 opacity-30" />
+      <p>No reviews yet</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {reviews.map(review => (
+        <div key={review.id} className="bg-[#111111] border border-white/8 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                {[1,2,3,4,5].map(s => (
+                  <Star key={s} size={14} className={s <= review.rating ? 'text-gold' : 'text-white/20'} />
+                ))}
+                <span className="text-white/30 text-xs ml-2">{review.reviewer_name} → {review.reviewee_name}</span>
+              </div>
+              <p className="text-white/70 text-sm">{review.comment}</p>
+              {review.host_reply && (
+                <div className="mt-2 pl-3 border-l-2 border-gold/30">
+                  <p className="text-white/40 text-xs mb-0.5">Host reply</p>
+                  <p className="text-white/60 text-sm">{review.host_reply}</p>
+                </div>
+              )}
+            </div>
+            <button onClick={() => handleDelete(review.id)} className="flex items-center gap-1 border border-red-400/30 text-red-400 text-xs px-3 py-2 rounded-lg hover:bg-red-400/10"> 
+              <XCircle size={13} /> Delete
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SaleListingsTab() {
+  const [properties, setProperties] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [rejectModal, setRejectModal] = useState(null)
+  const [rejectReason, setRejectReason] = useState('')
+
+  useEffect(() => {
+    api.get('/admin/properties-for-sale/')
+      .then(res => setProperties(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleApprove = async (id) => {
+    try {
+      await api.post(`/admin/properties-for-sale/${id}/approve/`)
+      toast.success('Property approved and now live!')
+      setProperties(prev => prev.map(p => p.id === id ? { ...p, status: 'live' } : p))
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to approve.')
+    }
+  }
+
+  const handleReject = async () => {
+    if (!rejectReason) return toast.error('Please provide a reason.')
+    try {
+      await api.post(`/admin/properties-for-sale/${rejectModal}/reject/`, { reason: rejectReason })
+      toast.success('Property rejected.')
+      setProperties(prev => prev.map(p => p.id === rejectModal ? { ...p, status: 'suspended' } : p))
+      setRejectModal(null)
+      setRejectReason('')
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to reject.')
     }
   }
 
@@ -664,85 +353,202 @@ export default function AdminPanel() {
 
   return (
     <div>
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-6">
-        {['completed', 'checked_in', 'confirmed'].map(s => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-4 py-2 rounded-lg text-sm transition-colors capitalize ${
-              filter === s ? 'bg-gold text-dark font-semibold' : 'bg-[#111111] text-white/50 border border-white/8'
-            }`}
-          >
-            {s.replace('_', ' ')}
-          </button>
+      <div className="space-y-4">
+        {properties.length === 0 ? (
+          <div className="text-center py-24 text-white/20">
+            <Home size={40} className="mx-auto mb-3 opacity-30" />
+            <p>No sale listings yet</p>
+          </div>
+        ) : properties.map(prop => (
+          <div key={prop.id} className="bg-[#111111] border border-white/8 rounded-xl p-5 flex gap-4">
+            {prop.photos?.[0] && (
+              <img src={prop.photos[0]} alt="" className="w-24 h-20 object-cover rounded-lg shrink-0" />
+            )}
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-white font-semibold">{prop.title}</h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                  prop.status === 'live' ? 'text-green-400 bg-green-400/10 border-green-400/20' :
+                  prop.status === 'pending_review' ? 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' :
+                  'text-red-400 bg-red-400/10 border-red-400/20'
+                }`}>
+                  {prop.status.replace('_', ' ')}
+                </span>
+              </div>
+              <p className="text-white/40 text-xs mb-1">{prop.neighborhood} · {prop.seller_name}</p>
+              <p className="text-gold font-bold">KES {prop.sale_price_kes?.toLocaleString()}</p>
+            </div>
+            {prop.status === 'pending_review' && (
+              <div className="flex gap-2 shrink-0 items-start">
+                <button
+                  onClick={() => handleApprove(prop.id)}
+                  className="flex items-center gap-1 bg-green-500/10 border border-green-500/30 text-green-400 text-xs px-3 py-2 rounded-lg hover:bg-green-500/20"
+                >
+                  <CheckCircle size={13} />
+                  Approve
+                </button>
+                <button
+                  onClick={() => setRejectModal(prop.id)}
+                  className="flex items-center gap-1 border border-red-400/30 text-red-400 text-xs px-3 py-2 rounded-lg hover:bg-red-400/10"
+                >
+                  <XCircle size={13} />
+                  Reject
+                </button>
+              </div>
+            )}
+          </div>
         ))}
       </div>
 
-      {bookings.length === 0 ? (
-        <div className="text-center py-24 text-white/20">
-          <DollarSign size={40} className="mx-auto mb-3 opacity-30" />
-          <p>No {filter.replace('_', ' ')} bookings</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {bookings.map(booking => (
-            <div key={booking.id} className="bg-[#111111] border border-white/8 rounded-xl p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-white font-semibold">{booking.listing_title}</h3>
-                    <span className={`text-xs px-2 py-1 rounded-full border ${
-                      booking.payout_sent_at
-                        ? 'text-green-400 bg-green-400/10 border-green-400/20'
-                        : 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20'
-                    }`}>
-                      {booking.payout_sent_at ? 'Payout Sent' : 'Payout Pending'}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-4 text-sm text-white/40 mb-2">
-                    <span>Ref: <span className="text-white/70">{booking.reference_code}</span></span>
-                    <span>Guest: <span className="text-white/70">{booking.guest_name}</span></span>
-                    <span>{booking.check_in_date} → {booking.check_out_date}</span>
-                  </div>
-                  <div className="flex gap-6 text-sm">
-                    <div>
-                      <p className="text-white/30 text-xs">Total Collected</p>
-                      <p className="text-white font-semibold">KES {booking.total_amount_kes?.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/30 text-xs">Platform Fee (10%)</p>
-                      <p className="text-white font-semibold">KES {booking.platform_fee_kes?.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/30 text-xs">Host Payout</p>
-                      <p className="text-gold font-bold text-lg">KES {booking.host_payout_kes?.toLocaleString()}</p>
-                    </div>
-                  </div>
-                  {booking.payout_sent_at && (
-                    <p className="text-green-400/60 text-xs mt-2">
-                      Sent on {new Date(booking.payout_sent_at).toLocaleDateString('en-KE', {
-                        day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                      })}
-                    </p>
-                  )}
-                </div>
-
-                {!booking.payout_sent_at && booking.status === 'completed' && (
-                  <button
-                    onClick={() => handleMarkPayout(booking.id)}
-                    className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 text-green-400 text-sm px-4 py-2 rounded-lg hover:bg-green-500/20 font-semibold shrink-0"
-                  >
-                    <CheckCircle size={14} />
-                    Mark Payout Sent
-                  </button>
-                )}
-              </div>
+      {rejectModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="bg-[#111111] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-white font-bold text-lg mb-1">Reject Listing</h3>
+            <p className="text-white/40 text-sm mb-4">Provide a reason - the seller will be notified.</p>
+            <textarea
+              rows={3}
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection..."
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold resize-none mb-4"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setRejectModal(null)} className="flex-1 border border-white/10 text-white/50 py-2 rounded-lg text-sm">Cancel</button>
+              <button onClick={handleReject} className="flex-1 bg-red-500 text-white font-semibold py-2 rounded-lg text-sm hover:bg-red-600">Reject</button>
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
   )
 }
+
+function ViewingsTab() {
+  const [viewings, setViewings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [notesModal, setNotesModal] = useState(null)
+  const [notes, setNotes] = useState('')
+  const [pendingStatus, setPendingStatus] = useState('')
+
+  useEffect(() => {
+    api.get('/admin/viewings/')
+      .then(res => setViewings(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleUpdate = async (id, newStatus, adminNotes = '') => {
+    try {
+      await api.patch(`/admin/viewings/${id}/`, { status: newStatus, admin_notes: adminNotes })
+      toast.success(`Viewing ${newStatus}!`)
+      setViewings(prev => prev.map(v => v.id === id ? { ...v, status: newStatus, admin_notes: adminNotes || v.admin_notes } : v))
+      setNotesModal(null)
+      setNotes('')
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update.')
+    }
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  return (
+    <div>
+      <div className="space-y-4">
+        {viewings.length === 0 ? (
+          <div className="text-center py-24 text-white/20">
+            <Calendar size={40} className="mx-auto mb-3 opacity-30" />
+            <p>No viewing requests yet</p>
+          </div>
+        ) : viewings.map(viewing => (
+          <div key={viewing.id} className="bg-[#111111] border border-white/8 rounded-xl p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-white font-semibold text-sm">{viewing.property_title}</h3>
+                  <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                    viewing.status === 'confirmed' ? 'text-green-400 bg-green-400/10 border-green-400/20' :
+                    viewing.status === 'pending' ? 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20' :
+                    viewing.status === 'completed' ? 'text-white/50 bg-white/5 border-white/10' :
+                    'text-red-400 bg-red-400/10 border-red-400/20'
+                  }`}>
+                    {viewing.status}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-3 text-xs text-white/40">
+                  <span>Buyer: {viewing.buyer_name}</span>
+                  <span>Email: {viewing.buyer_email}</span>
+                  <span>Phone: {viewing.buyer_phone}</span>
+                  <span>Date: {viewing.preferred_date}</span>
+                </div>
+                {viewing.message && (
+                  <p className="text-white/40 text-xs mt-2 italic">"{viewing.message}"</p>
+                )}
+                {viewing.admin_notes && (
+                  <p className="text-gold/60 text-xs mt-1">Notes: {viewing.admin_notes}</p>
+                )}
+              </div>
+
+              {viewing.status === 'pending' && (
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => { setNotesModal(viewing.id); setPendingStatus('confirmed') }}
+                    className="flex items-center gap-1 bg-green-500/10 border border-green-500/30 text-green-400 text-xs px-3 py-2 rounded-lg hover:bg-green-500/20"
+                  >
+                    <CheckCircle size={13} />
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => { setNotesModal(viewing.id); setPendingStatus('declined') }}
+                    className="flex items-center gap-1 border border-red-400/30 text-red-400 text-xs px-3 py-2 rounded-lg hover:bg-red-400/10"
+                  >
+                    <XCircle size={13} />
+                    Decline
+                  </button>
+                </div>
+              )}
+              {viewing.status === 'confirmed' && (
+                <button
+                  onClick={() => handleUpdate(viewing.id, 'completed')}
+                  className="flex items-center gap-1 bg-gold/10 border border-gold/20 text-gold text-xs px-3 py-2 rounded-lg hover:bg-gold/20 shrink-0"
+                >
+                  Mark Completed
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {notesModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="bg-[#111111] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-white font-bold text-lg mb-1 capitalize">{pendingStatus} Viewing</h3>
+            <p className="text-white/40 text-sm mb-4">Add notes for the buyer (optional) - they'll be included in the email.</p>
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={pendingStatus === 'confirmed' ? 'e.g. Meet at the gate at 2pm, call caretaker on arrival...' : 'e.g. Property is currently occupied, please check back next week...'}
+              className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold resize-none mb-4"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setNotesModal(null)} className="flex-1 border border-white/10 text-white/50 py-2 rounded-lg text-sm">Cancel</button>
+              <button
+                onClick={() => handleUpdate(notesModal, pendingStatus, notes)}
+                className={`flex-1 font-semibold py-2 rounded-lg text-sm ${
+                  pendingStatus === 'confirmed' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-red-500 text-white hover:bg-red-600'
+                }`}
+              >
+                {pendingStatus === 'confirmed' ? 'Confirm Viewing' : 'Decline Viewing'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }

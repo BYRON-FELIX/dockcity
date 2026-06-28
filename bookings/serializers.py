@@ -9,6 +9,14 @@ class BookingSerializer(serializers.ModelSerializer):
     listing_neighborhood = serializers.CharField(source='listing.neighborhood', read_only=True)
     listing_photo = serializers.SerializerMethodField()
     guest_name = serializers.CharField(source='guest.full_name', read_only=True)
+    guest_average_rating = serializers.DecimalField(
+        source='guest.guest_average_rating',
+        max_digits=3,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
+    guest_rating_count = serializers.IntegerField(source='guest.guest_rating_count', read_only=True)
 
     def get_listing_photo(self, obj):
         return obj.listing.photos.first().image.url if obj.listing.photos.exists() else None
@@ -18,8 +26,9 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'reference_code',
             'listing', 'listing_title', 'listing_neighborhood', 'listing_photo',
-            'guest', 'guest_name',
-            'check_in_date', 'check_out_date', 'total_nights',
+            'guest', 'guest_name', 'guest_average_rating', 'guest_rating_count',
+            'check_in_date', 'check_out_date', 'check_in_time', 'check_out_time',
+            'is_hourly_booking', 'hourly_duration', 'total_nights',
             'total_amount_kes', 'platform_fee_kes', 'host_payout_kes',
             'status', 'mpesa_transaction_code',
             'host_confirmed_at', 'checked_in_at',
@@ -41,6 +50,10 @@ class BookingCreateSerializer(serializers.Serializer):
     guests = serializers.IntegerField(min_value=1)
 
     def validate(self, data):
-        if data['check_out_date'] <= data['check_in_date']:
+        is_hourly = str(self.initial_data.get('is_hourly_booking', '')).lower() in ['true', '1', 'yes']
+        if is_hourly:
+            if data['check_out_date'] != data['check_in_date']:
+                raise serializers.ValidationError('Hourly bookings must start and end on the same date.')
+        elif data['check_out_date'] <= data['check_in_date']:
             raise serializers.ValidationError('Check-out must be after check-in.')
         return data

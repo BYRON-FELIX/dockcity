@@ -10,7 +10,12 @@ from .views import (
     BookingAddressView,
     BookingReceiptView,
     AdminMarkPayoutView,
-    AdminBookingsView, 
+    AdminBookingsView,
+    AdminRecentPaymentsView,
+    BookingRetryPaymentView, 
+    AdminDeclinedBookingsView,
+    AdminMarkRefundSentView,
+    GuestActiveTripsCountView,
 )
 
 urlpatterns = [
@@ -25,4 +30,9 @@ urlpatterns = [
     path('bookings/<uuid:pk>/receipt/', BookingReceiptView.as_view(), name='booking-receipt'),
     path('bookings/<uuid:pk>/mark-payout/', AdminMarkPayoutView.as_view(), name='admin-mark-payout'),
     path('admin/bookings/', AdminBookingsView.as_view(), name='admin-bookings'),
+    path('admin/bookings/recent-payments/', AdminRecentPaymentsView.as_view(), name='admin-recent-payments'),
+    path('admin/bookings/declined/', AdminDeclinedBookingsView.as_view(), name='admin-declined-bookings'),
+    path('bookings/<uuid:pk>/retry-payment/', BookingRetryPaymentView.as_view(), name='booking-retry-payment'),
+    path('bookings/<uuid:pk>/mark-refund-sent/', AdminMarkRefundSentView.as_view(), name='admin-mark-refund-sent'),
+    path('bookings/guest/active-count/', GuestActiveTripsCountView.as_view(), name='guest-active-count'),
 ]

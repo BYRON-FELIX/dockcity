@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useGoogleLogin } from '@react-oauth/google'
 import { Globe, Menu, X } from 'lucide-react'
+import { useActiveTripsCount } from '../hooks/useActiveTripsCount'
 import api from '../api/axios'
 import toast from 'react-hot-toast'
 
@@ -10,6 +11,10 @@ export default function Navbar() {
   const { user, logout, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
+  const hasGoogleClientId = Boolean((import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim())
+
+  const activeTripsCount = useActiveTripsCount(user?.role === 'guest')
 
  const handleGoogleLogin = useGoogleLogin({
   onSuccess: async (tokenResponse) => {
@@ -30,9 +35,37 @@ export default function Navbar() {
   onError: () => toast.error('Google login failed.'),
 })
 
+  const handleLocalDevLogin = async () => {
+    const email = window.prompt('Local dev login: enter your email')?.trim()
+    if (!email) return
+
+    const fullNameInput = window.prompt('Local dev login: enter full name (optional)')?.trim()
+    const fallbackName = email.includes('@') ? email.split('@')[0] : 'Local User'
+
+    try {
+      await loginWithGoogle('', email, fullNameInput || fallbackName)
+      toast.success('Signed in with local dev fallback.')
+    } catch {
+      toast.error('Local dev login failed. Check that backend is running on localhost:8000.')
+    }
+  }
+
+  const handleSignIn = () => {
+    if (!hasGoogleClientId) {
+      if (import.meta.env.DEV) {
+        void handleLocalDevLogin()
+        return
+      }
+      toast.error('Google sign-in is not configured. Set VITE_GOOGLE_CLIENT_ID in frontend/.env.local')
+      return
+    }
+
+    handleGoogleLogin()
+  }
+
   const handleListProperty = () => {
     if (!user) {
-      handleGoogleLogin()
+      handleSignIn()
       return
     }
     if (user.role === 'host') {
@@ -43,14 +76,32 @@ export default function Navbar() {
   }
 
   const handleLogout = () => {
+    setProfileMenuOpen(false)
     logout()
     navigate('/')
     toast.success('Logged out.')
   }
 
+  const handleSwitchToHost = () => {
+    setProfileMenuOpen(false)
+    if (user?.host_profile_status === 'approved') {
+      navigate('/dashboard/host')
+    } else if (user?.host_profile_status === 'pending') {
+      navigate('/dashboard/host')
+    } else {
+      navigate('/become-host')
+    }
+  }
+
+  const handleSwitchToGuest = () => {
+    setProfileMenuOpen(false)
+    navigate('/dashboard/guest')
+  }
+
   const navLinks = [
     { label: 'Home', to: '/' },
     { label: 'Stays', to: '/browse' },
+    { label: 'Properties for Sale', to: '/properties-for-sale' },
     { label: 'About Us', to: '/about' },
     { label: 'Contact', to: '/contact' },
   ]
@@ -85,8 +136,13 @@ export default function Navbar() {
           {user && (
             <div className="flex items-center gap-4">
               {user.role === 'guest' && (
-                <Link to="/dashboard/guest" className="text-white/60 text-sm hover:text-gold transition-colors">
+                <Link to="/dashboard/guest" className="relative text-white/60 text-sm hover:text-gold transition-colors">
                   My Trips
+                  {activeTripsCount > 0 && (
+                    <span className="absolute -top-2 -right-3 bg-gold text-dark text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {activeTripsCount}
+                    </span>
+                  )}
                 </Link>
               )}
               {user.role === 'host' && (
@@ -108,20 +164,74 @@ export default function Navbar() {
           </button>
 
           {user ? (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-surface border border-white/20 rounded-full flex items-center justify-center text-gold text-sm font-bold">
-                {user.full_name?.[0]?.toUpperCase()}
-              </div>
+            <div className="relative">
               <button
-                onClick={handleLogout}
-                className="text-sm text-white/50 hover:text-white transition-colors"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                className="w-9 h-9 rounded-full bg-gold/10 border border-gold/20 text-gold font-bold text-sm flex items-center justify-center hover:bg-gold/20 transition-colors"
               >
-                Logout
+                {user.full_name?.[0]?.toUpperCase() || 'U'}
               </button>
+
+              {profileMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setProfileMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-[#111111] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-white/8">
+                      <p className="text-white text-sm font-semibold truncate">{user.full_name}</p>
+                      <p className="text-white/30 text-xs truncate">{user.email}</p>
+                    </div>
+
+                    <div className="py-1">
+                      <button
+                        onClick={handleSwitchToGuest}
+                        className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
+                      >
+                        Switch to Guest Dashboard
+                      </button>
+                      <button
+                        onClick={handleSwitchToHost}
+                        className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
+                      >
+                        {user.host_profile_status === 'approved'
+                          ? 'Switch to Host Dashboard'
+                          : user.host_profile_status === 'pending'
+                            ? 'View Application Status'
+                            : 'Become a Host'}
+                      </button>
+                      <button
+                        onClick={() => { setProfileMenuOpen(false); navigate('/properties-for-sale/list') }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
+                      >
+                        List Property for Sale
+                      </button>
+                      {user.role === 'admin' && (
+                        <button
+                          onClick={() => { setProfileMenuOpen(false); navigate('/admin-panel') }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-gold transition-colors flex items-center gap-2"
+                        >
+                          Admin Panel
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="border-t border-white/8 py-1">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-red-400/5 transition-colors"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <button
-              onClick={() => handleGoogleLogin()}
+              onClick={handleSignIn}
               className="text-sm text-white/60 hover:text-white transition-colors"
             >
               Sign in
@@ -158,6 +268,45 @@ export default function Navbar() {
               {label}
             </Link>
           ))}
+
+          {/* Role-based links — same as desktop nav */}
+          {user && (
+            <div className="pt-2 border-t border-white/10 space-y-3">
+              {user.role === 'guest' && (
+                <Link
+                  to="/dashboard/guest"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  My Trips
+                  {activeTripsCount > 0 && (
+                    <span className="bg-gold text-dark text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {activeTripsCount}
+                    </span>
+                  )}
+                </Link>
+              )}
+              {user.role === 'host' && (
+                <Link
+                  to="/dashboard/host"
+                  onClick={() => setMobileOpen(false)}
+                  className="block text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  Dashboard
+                </Link>
+              )}
+              {user.role === 'admin' && (
+                <Link
+                  to="/admin-panel"
+                  onClick={() => setMobileOpen(false)}
+                  className="block text-white/70 text-sm hover:text-gold transition-colors"
+                >
+                  Admin
+                </Link>
+              )}
+            </div>
+          )}
+
           <div className="pt-2 border-t border-white/10 space-y-3">
             {user ? (
               <>
@@ -165,7 +314,12 @@ export default function Navbar() {
                 <button onClick={handleLogout} className="text-sm text-red-400">Logout</button>
               </>
             ) : (
-              <button onClick={() => handleGoogleLogin()} className="text-sm text-gold">Sign in with Google</button>
+              <button
+                onClick={handleSignIn}
+                className="text-sm text-gold"
+              >
+                Sign in with Google
+              </button>
             )}
             <button
               onClick={handleListProperty}

@@ -27,6 +27,23 @@ class Listing(models.Model):
     price_per_week_kes = models.PositiveIntegerField(null=True, blank=True)
     price_per_month_kes = models.PositiveIntegerField(null=True, blank=True)
 
+    is_hourly_available = models.BooleanField(default=False)
+    hourly_pricing_type = models.CharField(
+        max_length=20,
+        choices=[('flat_rate', 'Flat Rate per Hour'), ('fixed_blocks', 'Fixed Time Blocks')],
+        null=True,
+        blank=True,
+    )
+    hourly_rate_kes = models.IntegerField(null=True, blank=True)
+    hourly_min_hours = models.IntegerField(null=True, blank=True, default=2)
+    hourly_blocks = models.JSONField(null=True, blank=True)
+    long_stay_discounts = models.JSONField(null=True, blank=True)
+
+    earliest_checkin_time = models.TimeField(default='14:00')
+    latest_checkin_time = models.TimeField(default='22:00')
+    earliest_checkout_time = models.TimeField(default='08:00')
+    latest_checkout_time = models.TimeField(default='11:00')
+    
     max_guests = models.PositiveIntegerField(default=1)
     bedrooms = models.PositiveIntegerField(default=1)
     bathrooms = models.PositiveIntegerField(default=1)

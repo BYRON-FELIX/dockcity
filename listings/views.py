@@ -21,6 +21,7 @@ class ListingListView(APIView):
         max_price = request.query_params.get('max_price')
         bedrooms = request.query_params.get('bedrooms')
         max_guests = request.query_params.get('max_guests')
+        hourly_only = request.query_params.get('hourly')
 
         if neighborhood:
             listings = listings.filter(neighborhood__icontains=neighborhood)
@@ -34,6 +35,8 @@ class ListingListView(APIView):
             listings = listings.filter(bedrooms=bedrooms)
         if max_guests:
             listings = listings.filter(max_guests__gte=max_guests)
+        if hourly_only == 'true':
+            listings = listings.filter(is_hourly_available=True)
 
         serializer = ListingSerializer(listings, many=True)
         return Response(serializer.data)
@@ -84,19 +87,27 @@ class HostListingListView(APIView):
 
 
 class HostListingDetailView(APIView):
-    """Host — edit or delete their own listing."""
+    """Host — view, edit or delete their own listing."""
     permission_classes = [IsAuthenticated]
 
     def get_listing(self, pk, user):
         return get_object_or_404(Listing, pk=pk, host=user)
 
+    def get(self, request, pk):
+        listing = self.get_listing(pk, request.user)
+        serializer = ListingSerializer(listing)
+        data = dict(serializer.data)
+        data.update({
+            'full_address': listing.full_address,
+            'latitude': listing.latitude,
+            'longitude': listing.longitude,
+            'caretaker_name': listing.caretaker_name,
+            'caretaker_phone': listing.caretaker_phone,
+        })
+        return Response(data)
+
     def patch(self, request, pk):
         listing = self.get_listing(pk, request.user)
-        if listing.status == 'live':
-            return Response(
-                {'error': 'Cannot edit a live listing. Suspend it first.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
         serializer = ListingCreateSerializer(listing, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

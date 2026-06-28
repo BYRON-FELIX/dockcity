@@ -14,6 +14,11 @@ export default function ListingCard({ listing }) {
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
+          {listing.is_hourly_available && (
+            <span className="absolute top-2 right-2 bg-gold text-dark text-[10px] font-bold px-2 py-1 rounded-full">
+              Hourly Available
+            </span>
+          )}
           {listing.verification_badges?.length > 0 && (
             <div className="absolute top-3 left-3 flex items-center gap-1 bg-gold text-dark text-xs font-bold px-2 py-1 rounded-full">
               <ShieldCheck size={12} />
@@ -28,10 +33,11 @@ export default function ListingCard({ listing }) {
             <h3 className="text-white font-semibold text-sm leading-tight line-clamp-1">
               {listing.title}
             </h3>
-            {listing.average_rating > 0 && (
+            {listing.host_average_rating && (
               <div className="flex items-center gap-1 text-gold text-xs shrink-0">
                 <Star size={12} fill="currentColor" />
-                <span>{listing.average_rating}</span>
+                <span>{listing.host_average_rating}</span>
+                <span className="text-white/30">({listing.host_total_reviews})</span>
               </div>
             )}
           </div>
