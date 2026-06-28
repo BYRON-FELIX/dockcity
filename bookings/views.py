@@ -88,9 +88,13 @@ class BookingCreateView(APIView):
     def post(self, request):
         user = request.user
 
-        # Must be a guest
-        if user.role != 'guest':
-            return Response({'error': 'Only guests can create bookings.'}, status=status.HTTP_403_FORBIDDEN)
+        # Check mode sent from frontend
+        mode = request.data.get('mode', 'guest')
+        if mode != 'guest':
+            return Response(
+                {'error': 'You are currently in Host mode. Switch to Guest mode to make a booking.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         # Must have verified ID
         

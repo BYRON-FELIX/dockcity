@@ -120,6 +120,7 @@ const handleBooking = async () => {
           hourly_duration: hourlyDuration,
           guests: booking.guests,
           phone_number: phone,
+          mode: localStorage.getItem('dock_city_mode') || 'guest',
         }
       : {
           listing_id: id,
@@ -129,6 +130,7 @@ const handleBooking = async () => {
           check_out_time: checkOutTime,
           guests: booking.guests,
           phone_number: phone,
+          mode: localStorage.getItem('dock_city_mode') || 'guest',
         }
 
     const res = await api.post('/bookings/', bookingPayload)
