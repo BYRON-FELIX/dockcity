@@ -146,6 +146,30 @@ class HostListingSubmitView(APIView):
 
         listing.status = 'pending_review'
         listing.save()
+
+        from core.email import send_to_admins
+        from core.sms import send_sms_to_admin
+
+        admin_subject = f'[Admin] New stay listing pending review - {listing.title}'
+        admin_message = (
+            f'A host submitted a stay listing for review.\n\n'
+            f'Listing: {listing.title}\n'
+            f'Host: {listing.host.full_name} ({listing.host.email})\n'
+            f'Neighborhood: {listing.neighborhood}, {listing.city}\n'
+            f'Listing ID: {listing.id}\n\n'
+            f'Open Admin Panel to review and take it live:\n'
+            f'https://thedockcity.com/admin-panel'
+        )
+        send_to_admins(admin_subject, admin_message)
+
+        send_sms_to_admin(
+            f'[Admin] Stay listing pending review\n'
+            f'{listing.title}\n'
+            f'Host: {listing.host.full_name}\n'
+            f'Area: {listing.neighborhood}\n'
+            f'Review: thedockcity.com/admin-panel'
+        )
+
         return Response({'message': 'Listing submitted for admin review.'})
 
 

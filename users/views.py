@@ -134,7 +134,15 @@ class BecomeHostView(APIView):
         )
 
         from core.email import notify_host_application_submitted
+        from core.sms import send_sms_to_admin
         notify_host_application_submitted(user)
+        send_sms_to_admin(
+            f'[Admin] New host application\n'
+            f'Name: {user.full_name}\n'
+            f'Email: {user.email}\n'
+            f'Phone: {user.phone_number or "N/A"}\n'
+            f'Review: thedockcity.com/admin-panel'
+        )
 
         return Response(
             {'message': 'Host application submitted. Await admin approval.'},

@@ -59,6 +59,7 @@ class PropertySaleCreateView(APIView):
             prop = serializer.save(seller=request.user, status='pending_review')
 
             from core.email import send_to_admins
+            from core.sms import send_sms_to_admin
             send_to_admins(
                 f'[Admin] New property listed for sale - {prop.title}',
                 f'A new property has been submitted for sale listing review.\n\n'
@@ -68,6 +69,15 @@ class PropertySaleCreateView(APIView):
                 f'Price: KES {prop.sale_price_kes:,}\n\n'
                 'Log in to the Admin Panel to review and approve.\n'
                 'https://thedockcity.com/admin-panel'
+            )
+
+            send_sms_to_admin(
+                f'[Admin] Property sale pending review\n'
+                f'{prop.title}\n'
+                f'Seller: {request.user.full_name}\n'
+                f'Area: {prop.neighborhood}\n'
+                f'Price: KES {prop.sale_price_kes:,}\n'
+                f'Review: thedockcity.com/admin-panel'
             )
 
             from core.email import send_email
