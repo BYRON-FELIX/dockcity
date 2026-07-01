@@ -337,7 +337,7 @@ function ListingCard({ listing }) {
         <img
           src={photo}
           alt={listing.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-contain object-center bg-[#0A0A0A] group-hover:scale-105 transition-transform duration-500"
         />
         {listing.verification_badges?.length > 0 && (
           <div className="absolute top-3 left-3 flex items-center gap-1 bg-gold text-dark text-xs font-bold px-2 py-1 rounded-full">
