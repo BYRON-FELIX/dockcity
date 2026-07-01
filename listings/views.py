@@ -149,6 +149,8 @@ class HostListingSubmitView(APIView):
 
         from core.email import send_to_admins
         from core.sms import send_sms_to_admin
+        from core.email import send_email
+        from core.sms import send_sms
 
         admin_subject = f'[Admin] New stay listing pending review - {listing.title}'
         admin_message = (
@@ -168,6 +170,26 @@ class HostListingSubmitView(APIView):
             f'Host: {listing.host.full_name}\n'
             f'Area: {listing.neighborhood}\n'
             f'Review: thedockcity.com/admin-panel'
+        )
+
+        # Notify host that their listing is now in review queue
+        send_email(
+            listing.host.email,
+            f'Listing submitted for review - {listing.title}',
+            f'Hello {listing.host.full_name},\n\n'
+            f'Your stay listing "{listing.title}" has been submitted for admin review.\n\n'
+            'Our team will review it and notify you once it is approved or if any changes are needed.\n\n'
+            'Track status in your Host Dashboard:\n'
+            'https://thedockcity.com/dashboard/host\n\n'
+            ' - Dock City Team'
+        )
+
+        send_sms(
+            listing.host.phone_number,
+            f'Dock City: Listing submitted for review\n'
+            f'{listing.title}\n'
+            'We will notify you once approved.\n'
+            'Dashboard: thedockcity.com/dashboard/host'
         )
 
         return Response({'message': 'Listing submitted for admin review.'})

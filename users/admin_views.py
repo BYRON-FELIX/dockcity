@@ -146,6 +146,27 @@ class AdminListingApproveView(APIView):
         listing.status = 'live'
         listing.save()
 
+        from core.email import send_email
+        from core.sms import send_sms
+
+        send_email(
+            listing.host.email,
+            f'Your listing is now live - {listing.title}',
+            f'Hello {listing.host.full_name},\n\n'
+            f'Great news! Your listing "{listing.title}" has been approved and is now live on Dock City.\n\n'
+            'You can now start receiving bookings.\n\n'
+            'Host Dashboard: https://thedockcity.com/dashboard/host\n\n'
+            ' - Dock City Team'
+        )
+
+        send_sms(
+            listing.host.phone_number,
+            f'Dock City: Listing approved and now live\n'
+            f'{listing.title}\n'
+            'You can now receive bookings.\n'
+            'thedockcity.com/dashboard/host'
+        )
+
         return Response({'message': f'Listing "{listing.title}" is now live.'})
 
 
@@ -159,6 +180,25 @@ class AdminListingSuspendView(APIView):
         listing = get_object_or_404(Listing, pk=pk)
         listing.status = 'suspended'
         listing.save()
+
+        from core.email import send_email
+        from core.sms import send_sms
+
+        send_email(
+            listing.host.email,
+            f'Update on your listing - {listing.title}',
+            f'Hello {listing.host.full_name},\n\n'
+            f'Your listing "{listing.title}" has been suspended by the admin team.\n\n'
+            'Please contact support@thedockcity.com for more details or next steps.\n\n'
+            ' - Dock City Team'
+        )
+
+        send_sms(
+            listing.host.phone_number,
+            f'Dock City: Listing suspended\n'
+            f'{listing.title}\n'
+            'Contact support@thedockcity.com'
+        )
 
         return Response({'message': f'Listing "{listing.title}" has been suspended.'})
 
