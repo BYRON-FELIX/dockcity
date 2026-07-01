@@ -456,7 +456,7 @@ class GuestBookingListView(APIView):
         auto_complete_expired_bookings(bookings)
         # Refresh after auto-complete
         bookings = Booking.objects.filter(guest=request.user)
-        serializer = BookingSerializer(bookings, many=True)
+        serializer = BookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -486,7 +486,7 @@ class HostBookingListView(APIView):
         auto_complete_expired_bookings(bookings)
         # Refresh after auto-complete
         bookings = Booking.objects.filter(listing__host=request.user)
-        serializer = BookingSerializer(bookings, many=True)
+        serializer = BookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
     
 class BookingAddressView(APIView):
@@ -607,7 +607,7 @@ class AdminBookingsView(APIView):
         if status_filter:
             bookings = bookings.filter(status=status_filter)
         
-        serializer = BookingSerializer(bookings, many=True)
+        serializer = BookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -621,7 +621,7 @@ class AdminRecentPaymentsView(APIView):
 
         payment_statuses = ['awaiting_host', 'confirmed', 'checked_in', 'completed']
         bookings = Booking.objects.filter(status__in=payment_statuses).order_by('-created_at')[:50]
-        serializer = BookingSerializer(bookings, many=True)
+        serializer = BookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -634,7 +634,7 @@ class AdminDeclinedBookingsView(APIView):
             return Response({'error': 'Admin only.'}, status=status.HTTP_403_FORBIDDEN)
 
         bookings = Booking.objects.filter(status='cancelled', refund_status='pending')
-        serializer = BookingSerializer(bookings, many=True)
+        serializer = BookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
 

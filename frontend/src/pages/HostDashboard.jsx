@@ -312,6 +312,23 @@ export default function HostDashboard() {
                           <span className="text-gold font-semibold">KES {booking.host_payout_kes?.toLocaleString()}</span>
                           <span className="text-white/30">Ref: {booking.reference_code}</span>
                         </div>
+
+                        {booking.status === 'awaiting_host' && booking.guest_recent_host_reviews?.length > 0 && (
+                          <div className="mt-3 bg-[#0A0A0A] border border-white/8 rounded-lg p-3">
+                            <p className="text-white/50 text-xs mb-2">What other hosts said about this guest</p>
+                            <div className="space-y-2">
+                              {booking.guest_recent_host_reviews.map((r) => (
+                                <div key={r.id} className="text-xs text-white/60 border-l-2 border-gold/30 pl-2">
+                                  <div className="flex items-center gap-1 text-white/40 mb-1">
+                                    <Star size={10} className="text-gold" fill="currentColor" />
+                                    <span>{r.rating}/5 by {r.reviewer_name}</span>
+                                  </div>
+                                  <p className="text-white/70">{r.comment}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Actions */}
@@ -609,6 +626,65 @@ export default function HostDashboard() {
                 className="flex-1 bg-red-500 text-white font-semibold py-2 rounded-lg text-sm hover:bg-red-600"
               >
                 Decline Booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Guest Modal */}
+      {reviewModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
+          <div className="bg-[#111111] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-white font-bold text-lg mb-1">Review Guest</h3>
+            <p className="text-white/40 text-sm mb-4">Rate your experience with this guest.</p>
+
+            <div className="mb-4">
+              <label className="text-white/50 text-xs mb-2 block">Rating</label>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReview((prev) => ({ ...prev, rating: star }))}
+                    className="p-1"
+                  >
+                    <Star
+                      size={20}
+                      className={star <= review.rating ? 'text-gold' : 'text-white/20'}
+                      fill={star <= review.rating ? 'currentColor' : 'none'}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-white/50 text-xs mb-1 block">Comment</label>
+              <textarea
+                rows={3}
+                value={review.comment}
+                onChange={(e) => setReview((prev) => ({ ...prev, comment: e.target.value }))}
+                placeholder="How was your experience with this guest?"
+                className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-gold resize-none"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setReviewModal(null)
+                  setReview({ rating: 5, comment: '' })
+                }}
+                className="flex-1 border border-white/10 text-white/50 py-2 rounded-lg text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReview}
+                className="flex-1 bg-gold text-dark font-semibold py-2 rounded-lg text-sm hover:bg-gold/90"
+              >
+                Submit Review
               </button>
             </div>
           </div>

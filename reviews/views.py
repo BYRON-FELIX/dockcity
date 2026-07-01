@@ -26,11 +26,7 @@ def recalculate_ratings(reviewee):
 
 
 class SubmitReviewView(APIView):
-    """
-    Guest or host submits a review after a completed booking.
-    Reviews are double-blind — neither party sees the other's
-    review until both have submitted.
-    """
+    """Guest or host submits a review after a completed booking."""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -70,16 +66,9 @@ class SubmitReviewView(APIView):
             reviewee=reviewee,
             rating=data['rating'],
             comment=data['comment'],
-            is_visible=False,
+            is_visible=True,
         )
         recalculate_ratings(review.reviewee)
-
-        # If both parties have now reviewed — make both visible
-        both_reviewed = Review.objects.filter(booking=booking).count() == 2
-        if both_reviewed:
-            Review.objects.filter(booking=booking).update(is_visible=True)
-            for visible_review in Review.objects.filter(booking=booking):
-                recalculate_ratings(visible_review.reviewee)
 
         return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)
 
@@ -169,6 +158,12 @@ class HostReplyToReviewView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
+        if not review.is_visible:
+            return Response(
+                {'error': 'This review is not visible yet.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if review.host_reply:
             return Response(
                 {'error': 'You have already replied to this review.'},
@@ -188,7 +183,7 @@ class HostReviewsListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        reviews = Review.objects.filter(reviewee=request.user).order_by('-submitted_at')
+        reviews = Review.objects.filter(reviewee=request.user, is_visible=True).order_by('-submitted_at')
         data = []
         for r in reviews:
             data.append({

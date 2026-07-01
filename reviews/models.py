@@ -6,7 +6,7 @@ from bookings.models import Booking
 
 class Review(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    booking = models.OneToOneField(Booking, on_delete=models.PROTECT, related_name='review')
+    booking = models.ForeignKey(Booking, on_delete=models.PROTECT, related_name='reviews')
     reviewer = models.ForeignKey(User, on_delete=models.PROTECT, related_name='reviews_given')
     reviewee = models.ForeignKey(User, on_delete=models.PROTECT, related_name='reviews_received')
     rating = models.PositiveSmallIntegerField()  # 1-5
@@ -17,6 +17,9 @@ class Review(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
+        constraints = [
+            models.UniqueConstraint(fields=['booking', 'reviewer'], name='unique_review_per_booking_reviewer'),
+        ]
 
     def __str__(self):
         return f'Review by {self.reviewer.full_name} → {self.reviewee.full_name} ({self.rating}★)'

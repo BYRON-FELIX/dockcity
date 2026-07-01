@@ -17,6 +17,7 @@ class BookingSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     guest_rating_count = serializers.IntegerField(source='guest.guest_rating_count', read_only=True)
+    guest_recent_host_reviews = serializers.SerializerMethodField()
 
     def get_listing_photo(self, obj):
         return obj.listing.photos.first().image.url if obj.listing.photos.exists() else None
@@ -26,7 +27,7 @@ class BookingSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'reference_code',
             'listing', 'listing_title', 'listing_neighborhood', 'listing_photo',
-            'guest', 'guest_name', 'guest_average_rating', 'guest_rating_count',
+            'guest', 'guest_name', 'guest_average_rating', 'guest_rating_count', 'guest_recent_host_reviews',
             'check_in_date', 'check_out_date', 'check_in_time', 'check_out_time',
             'is_hourly_booking', 'hourly_duration', 'total_nights',
             'total_amount_kes', 'platform_fee_kes', 'host_payout_kes',
@@ -36,6 +37,36 @@ class BookingSerializer(serializers.ModelSerializer):
             'cancellation_reason', 'created_at'
         ]
         read_only_fields = fields
+
+    def get_guest_recent_host_reviews(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return []
+
+        # Only expose this detail to the host handling the booking.
+        if request.user.id != obj.listing.host_id:
+            return []
+
+        from reviews.models import Review
+
+        qs = (
+            Review.objects
+            .filter(reviewee=obj.guest, is_visible=True, reviewer__role='host')
+            .exclude(reviewer=request.user)
+            .order_by('-submitted_at')[:3]
+        )
+
+        return [
+            {
+                'id': str(r.id),
+                'rating': r.rating,
+                'comment': r.comment,
+                'reviewer_name': r.reviewer.full_name,
+                'submitted_at': r.submitted_at,
+            }
+            for r in qs
+        ]
+
     def get_listing_photo(self, obj):
         photos = obj.listing.photos
         if photos and len(photos) > 0:
