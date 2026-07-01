@@ -4,12 +4,13 @@ from .views import (
     HostListingListView, HostListingDetailView,
     HostListingSubmitView, CloudinarySignatureView,
     ListingAvailabilityView, HostBlockDatesView,
-    NeighborhoodListView
+    NeighborhoodListView, AmenityListView
 )
 
 urlpatterns = [
     # Public
     path('neighborhoods/', NeighborhoodListView.as_view(), name='neighborhoods'),
+    path('amenities/', AmenityListView.as_view(), name='amenities'),
     path('listings/', ListingListView.as_view(), name='listing-list'),
     path('listings/<uuid:pk>/', ListingDetailView.as_view(), name='listing-detail'),
     path('listings/<uuid:pk>/availability/', ListingAvailabilityView.as_view(), name='listing-availability'),

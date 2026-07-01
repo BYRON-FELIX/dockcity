@@ -59,7 +59,7 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
+      <section className="relative min-h-screen flex items-center overflow-visible">
         {/* Background image — full screen on mobile, right side on desktop */}
         <div
           className="absolute inset-0 md:left-[45%] bg-cover bg-center bg-no-repeat"
@@ -304,7 +304,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <img
-              src="https://res.cloudinary.com/dzczkq1nl/image/upload/v1780476676/stayhaki_logo_davvxw.png"
+              src="https://res.cloudinary.com/dzczkq1nl/image/upload/t_cropped/ChatGPT_Image_Jun_30_2026_09_33_13_PM_oezlij.png"
               alt="The Dock City"
               className="h-8 w-auto object-contain"
             />

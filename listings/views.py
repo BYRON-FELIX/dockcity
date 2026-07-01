@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from decimal import Decimal
-from .models import Listing, Neighborhood
+from .models import Listing, Neighborhood, Amenity
 from .serializers import ListingSerializer, ListingCreateSerializer, ListingDetailSerializer
 
 class ListingListView(APIView):
@@ -284,4 +284,27 @@ class NeighborhoodListView(APIView):
     def get(self, request):
         neighborhoods = Neighborhood.objects.filter(is_active=True)
         data = [{'id': n.id, 'name': n.name, 'city': n.city} for n in neighborhoods]
+        return Response(data)
+
+
+class AmenityListView(APIView):
+    """Public - get active amenities, optionally filtered by target."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        target = (request.query_params.get('target') or '').strip().lower()
+
+        amenities = Amenity.objects.filter(is_active=True)
+        if target in ['listing', 'property']:
+            amenities = amenities.filter(applies_to__in=[target, 'both'])
+
+        data = [
+            {
+                'id': a.id,
+                'name': a.name,
+                'applies_to': a.applies_to,
+                'sort_order': a.sort_order,
+            }
+            for a in amenities
+        ]
         return Response(data)

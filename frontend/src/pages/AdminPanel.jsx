@@ -60,7 +60,7 @@ export default function AdminPanel() {
     <div className="min-h-screen bg-[#0A0A0A] flex">
       <div className="w-64 bg-[#111111] border-r border-white/8 flex flex-col shrink-0 p-4">
         <div className="mb-4">
-          <img src="https://res.cloudinary.com/dzczkq1nl/image/upload/v1780476676/stayhaki_logo_davvxw.png" alt="logo" className="h-8 mb-1" />
+          <img src="https://res.cloudinary.com/dzczkq1nl/image/upload/t_cropped/ChatGPT_Image_Jun_30_2026_09_33_13_PM_oezlij.png" alt="logo" className="h-8 mb-1" />
           <p className="text-white/30 text-xs">Admin Panel</p>
         </div>
 

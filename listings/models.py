@@ -101,4 +101,24 @@ class Neighborhood(models.Model):
 
     def __str__(self):
         return f'{self.name}, {self.city}'
+
+
+class Amenity(models.Model):
+    TARGET_CHOICES = [
+        ('listing', 'Listing'),
+        ('property', 'Property For Sale'),
+        ('both', 'Both'),
+    ]
+
+    name = models.CharField(max_length=100, unique=True)
+    applies_to = models.CharField(max_length=20, choices=TARGET_CHOICES, default='both')
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
     

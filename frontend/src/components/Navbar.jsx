@@ -98,14 +98,19 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0A]/95 backdrop-blur-sm border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
 
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 bg-gold rounded-lg flex items-center justify-center">
-            <span className="text-dark font-black text-sm">T</span>
-          </div>
-          <span className="text-white font-bold text-lg tracking-tight">The Dock City</span>
+        <Link to="/" className="flex items-center gap-3 shrink-0">
+          <img
+            src="/logo-mark.png"
+            alt="The Dock City"
+            className="w-[52px] h-[52px] object-contain"
+            onError={(e) => {
+              e.currentTarget.src = 'https://res.cloudinary.com/dzczkq1nl/image/upload/t_cropped/ChatGPT_Image_Jun_30_2026_09_33_13_PM_oezlij.png'
+            }}
+          />
+          <span className="text-white font-bold text-xl tracking-tight">The Dock City</span>
         </Link>
 
         {/* Desktop nav links */}

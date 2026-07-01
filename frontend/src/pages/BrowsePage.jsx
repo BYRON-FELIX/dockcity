@@ -6,11 +6,6 @@ import ListingCard from '../components/ListingCard'
 import api from '../api/axios'
 import { useNeighborhoods } from '../hooks/useNeighborhoods'
 
-const AMENITIES = [
-  'WiFi', 'Parking', 'Swimming Pool', 'Gym', 'Generator',
-  'Air Conditioning', 'DSTV', 'Security', 'Balcony', 'Kitchen'
-]
-
 export default function BrowsePage() {
   const [searchParams] = useSearchParams()
   const { neighborhoods } = useNeighborhoods()

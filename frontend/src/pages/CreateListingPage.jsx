@@ -8,17 +8,13 @@ import toast from 'react-hot-toast'
 import PhotoUploader from '../components/PhotoUploader'
 import MapPicker from '../components/MapPicker'
 import { useNeighborhoods } from '../hooks/useNeighborhoods'
-
-const AMENITIES_OPTIONS = [
-  'WiFi', 'Parking', 'Swimming Pool', 'Gym', 'Generator',
-  'Air Conditioning', 'DSTV', 'Security', 'Balcony', 'Kitchen',
-  'Washing Machine', 'Hot Water', 'Study Desk', 'Smart TV'
-]
+import { useAmenities } from '../hooks/useAmenities'
 
 export default function CreateListingPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { neighborhoods } = useNeighborhoods()
+  const { amenities: amenityOptions } = useAmenities('listing')
 
   const [form, setForm] = useState({
     title: '',
@@ -546,7 +542,7 @@ export default function CreateListingPage() {
               <div>
                 <label className="text-white/50 text-xs mb-2 block">Amenities</label>
                 <div className="flex flex-wrap gap-2">
-                  {AMENITIES_OPTIONS.map(amenity => (
+                  {amenityOptions.map(amenity => (
                     <button
                       key={amenity}
                       type="button"

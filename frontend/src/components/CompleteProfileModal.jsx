@@ -44,7 +44,7 @@ export default function CompleteProfileModal() {
         {/* Header */}
         <div className="text-center mb-6">
           <img
-            src="https://res.cloudinary.com/dzczkq1nl/image/upload/v1780476658/stayhaki_logo_2_kptduj.png"
+            src="https://res.cloudinary.com/dzczkq1nl/image/upload/t_cropped/ChatGPT_Image_Jun_30_2026_09_33_13_PM_oezlij.png"
             alt="The Dock City"
             className="h-16 w-auto object-contain mx-auto mb-4"
           />
