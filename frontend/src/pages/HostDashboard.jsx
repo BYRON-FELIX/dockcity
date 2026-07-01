@@ -341,17 +341,16 @@ export default function HostDashboard() {
                               Decline
                             </button>
 
-                            {/* Review Guest */}
-                            {booking.status === 'completed' && (
-                              <button
-                                onClick={() => setReviewModal(booking.id)}
-                                className="flex items-center gap-1 bg-gold/10 border border-gold/20 text-gold text-xs font-semibold px-3 py-2 rounded-lg hover:bg-gold/20 transition-colors"
-                              >
-                                <Star size={13} />
-                                Review Guest
-                              </button>
-                            )}
                           </>
+                        )}
+                        {booking.status === 'completed' && (
+                          <button
+                            onClick={() => setReviewModal(booking.id)}
+                            className="flex items-center gap-1 bg-gold/10 border border-gold/20 text-gold text-xs font-semibold px-3 py-2 rounded-lg hover:bg-gold/20 transition-colors"
+                          >
+                            <Star size={13} />
+                            Review Guest
+                          </button>
                         )}
                         {booking.status === 'completed' && (
                         <div className="mt-2">
