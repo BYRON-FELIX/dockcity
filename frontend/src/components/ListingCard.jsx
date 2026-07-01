@@ -12,7 +12,7 @@ export default function ListingCard({ listing }) {
           <img
             src={photo}
             alt={listing.title}
-            className="w-full h-full object-contain object-center bg-[#0A0A0A] group-hover:scale-105 transition-transform duration-500"
+            className="h-full w-auto min-w-full object-contain object-center bg-[#0A0A0A] group-hover:scale-105 transition-transform duration-500"
           />
           {listing.is_hourly_available && (
             <span className="absolute top-2 right-2 bg-gold text-dark text-[10px] font-bold px-2 py-1 rounded-full">
